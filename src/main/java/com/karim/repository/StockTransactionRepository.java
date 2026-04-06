@@ -1,5 +1,6 @@
 package com.karim.repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -10,24 +11,25 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.karim.entity.StockTransaction;
+import com.karim.enums.StockTransactionType;
 
 public interface StockTransactionRepository extends JpaRepository<StockTransaction, UUID> {
 
-    // ✅ create(data) → handled by save()
+	// ✅ create(data) → handled by save()
 
-    // ✅ findByProduct(productId, filters) with pagination
-    @Query("""
-        SELECT st FROM StockTransaction st
-        WHERE st.productId = :productId
-    """)
-    Page<StockTransaction> findByProduct(
-            @Param("productId") UUID productId,
-            Pageable pageable
-    );
+	// ✅ findByProduct(productId, filters) with pagination
+	@Query("""
+			    SELECT st FROM StockTransaction st
+			    WHERE st.productId = :productId
+			""")
+	Page<StockTransaction> findByProduct(@Param("productId") UUID productId, Pageable pageable);
 
-    // ✅ findByOrder(orderId)
-    List<StockTransaction> findByOrderId(UUID orderId);
+	// ✅ findByOrder(orderId)
+	List<StockTransaction> findByOrderId(UUID orderId);
 
-    // ✅ findByReturn(returnRequestId)
-    List<StockTransaction> findByReturnRequestId(UUID returnRequestId);
+	// ✅ findByReturn(returnRequestId)
+	List<StockTransaction> findByReturnRequestId(UUID returnRequestId);
+
+	Page<StockTransaction> findTransactions(UUID productId, StockTransactionType type, UUID orderId,
+			UUID returnRequestId, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable);
 }

@@ -14,7 +14,7 @@ import com.karim.entity.OrderItem;
 public interface OrderItemRepository extends JpaRepository<OrderItem, UUID> {
 
     // ✅ findByOrder(orderId)
-    List<OrderItem> findByOrderId(UUID orderId);
+	List<OrderItem> findByOrder_Id(UUID orderId);
 
     // ✅ findById
     Optional<OrderItem> findById(UUID id);

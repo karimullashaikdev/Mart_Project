@@ -12,41 +12,61 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.karim.entity.Order;
+import com.karim.enums.OrderStatus;
 
 public interface OrderRepository extends JpaRepository<Order, UUID> {
 
-    // ✅ findById
-    Optional<Order> findById(UUID id);
+	// ✅ findById
+	Optional<Order> findById(UUID id);
 
-    // ✅ findByNumber
-    Optional<Order> findByOrderNumber(String orderNumber);
+	// ✅ findByNumber
+	Optional<Order> findByOrderNumber(String orderNumber);
 
-    // ✅ findByUser with pagination
-    @Query("""
-        SELECT o FROM Order o
-        WHERE o.userId = :userId
-    """)
-    Page<Order> findByUser(@Param("userId") UUID userId, Pageable pageable);
+	// ✅ findByUser with pagination
+	@Query("""
+			    SELECT o FROM Order o
+			    WHERE o.user.id = :userId
+			""")
+	Page<Order> findByUser(@Param("userId") UUID userId, Pageable pageable);
 
-    // ✅ listAdmin (no user filter, includes all except soft deleted handled by entity)
-    @Query("""
-        SELECT o FROM Order o
-    """)
-    Page<Order> listAdmin(Pageable pageable);
+	// ✅ listAdmin (no user filter, includes all except soft deleted handled by
+	// entity)
+	@Query("""
+			    SELECT o FROM Order o
+			""")
+	Page<Order> listAdmin(Pageable pageable);
 
-    // ✅ create(data) → save()
+	// ✅ create(data) → save()
 
-    // ✅ updateStatus
-    @Modifying
-    @Query("""
-        UPDATE Order o
-        SET o.status = :status,
-            o.updatedAt = :updatedAt
-        WHERE o.id = :id
-    """)
-    void updateStatus(
-            @Param("id") UUID id,
-            @Param("status") String status,
-            @Param("updatedAt") LocalDateTime updatedAt
-    );
+	// ✅ updateStatus
+	@Modifying
+	@Query("""
+			    UPDATE Order o
+			    SET o.status = :status,
+			        o.updatedAt = :updatedAt
+			    WHERE o.id = :id
+			""")
+	void updateStatus(@Param("id") UUID id, @Param("status") String status,
+			@Param("updatedAt") LocalDateTime updatedAt);
+
+	@Query("""
+			    SELECT o FROM Order o
+			    WHERE o.user.id = :userId
+			    AND (:status IS NULL OR o.status = :status)
+			    AND (:fromDate IS NULL OR o.placedAt >= :fromDate)
+			    AND (:toDate IS NULL OR o.placedAt <= :toDate)
+			    ORDER BY o.placedAt DESC
+			""")
+	Page<Order> findOrdersByUser(@Param("userId") UUID userId, @Param("status") OrderStatus status,
+			@Param("fromDate") LocalDateTime fromDate, @Param("toDate") LocalDateTime toDate, Pageable pageable);
+
+	@Query("""
+			    SELECT o FROM Order o
+			    WHERE (:status IS NULL OR o.status = :status)
+			    AND (:fromDate IS NULL OR o.placedAt >= :fromDate)
+			    AND (:toDate IS NULL OR o.placedAt <= :toDate)
+			    ORDER BY o.placedAt DESC
+			""")
+	Page<Order> listOrdersAdmin(@Param("status") OrderStatus status, @Param("fromDate") LocalDateTime fromDate,
+			@Param("toDate") LocalDateTime toDate, Pageable pageable);
 }

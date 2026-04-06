@@ -21,10 +21,11 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.Data;
 
 @Entity
 @Table(name = "orders")
-
+@Data
 @SQLDelete(sql = "UPDATE orders SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
 

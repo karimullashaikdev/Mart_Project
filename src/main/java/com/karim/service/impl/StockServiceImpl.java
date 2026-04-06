@@ -1,10 +1,14 @@
 package com.karim.service.impl;
 
+import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.karim.dto.StockTransactionFilter;
 import com.karim.entity.Stock;
 import com.karim.entity.StockTransaction;
 import com.karim.enums.StockTransactionType;
@@ -179,5 +183,105 @@ public class StockServiceImpl implements StockService {
 		// ✅ Note:
 		// At this stage, available stock was already reduced during reservation.
 		// So we only reduce reservedQuantity here.
+	}
+
+	@Override
+	@Transactional
+	public void restockFromReturn(UUID productId, int quantity, UUID returnRequestId, UUID actorId) {
+
+		// 🔍 Step 1: Fetch stock
+		Stock stock = stockRepository.findByProductId(productId)
+				.orElseThrow(() -> new RuntimeException("Stock not found for productId: " + productId));
+
+		// 📊 Step 2: Capture before state
+		int beforeQty = stock.getQuantityAvailable() == null ? 0 : stock.getQuantityAvailable();
+
+		// ➕ Step 3: Update available quantity
+		int afterQty = beforeQty + quantity;
+		stock.setQuantityAvailable(afterQty);
+		stock.setUpdatedBy(actorId);
+
+		stockRepository.save(stock); // triggers @PreUpdate
+
+		// 🧾 Step 4: Create stock transaction
+		StockTransaction transaction = new StockTransaction();
+		transaction.setProductId(productId);
+		transaction.setReturnRequestId(returnRequestId);
+		transaction.setType(StockTransactionType.RETURN);
+		transaction.setQuantityDelta(quantity);
+		transaction.setQuantityBefore(beforeQty);
+		transaction.setQuantityAfter(afterQty);
+		transaction.setReason("Restocked from approved return");
+		transaction.setCreatedBy(actorId);
+
+		transactionRepository.save(transaction);
+	}
+
+	@Override
+	@Transactional
+	public void adjustStock(UUID productId, int delta, String reason, UUID actorId) {
+
+		// 🔍 Step 1: Fetch stock
+		Stock stock = stockRepository.findByProductId(productId)
+				.orElseThrow(() -> new RuntimeException("Stock not found for productId: " + productId));
+
+		// 📊 Step 2: Current quantity
+		int beforeQty = stock.getQuantityAvailable() == null ? 0 : stock.getQuantityAvailable();
+
+		// 🧠 Step 3: Validate (important!)
+		int afterQty = beforeQty + delta;
+		if (afterQty < 0) {
+			throw new IllegalArgumentException("Stock cannot go negative");
+		}
+
+		// 🔄 Step 4: Update stock
+		stock.setQuantityAvailable(afterQty);
+		stock.setUpdatedBy(actorId);
+
+		stockRepository.save(stock);
+
+		// 🧾 Step 5: Decide transaction type
+		StockTransactionType type;
+
+		if (delta > 0) {
+			type = StockTransactionType.ADJUSTMENT; // manual increase
+		} else {
+			type = StockTransactionType.DAMAGED; // loss/damage
+		}
+
+		// 🧾 Step 6: Save transaction
+		StockTransaction tx = new StockTransaction();
+		tx.setProductId(productId);
+		tx.setType(type);
+		tx.setQuantityDelta(delta);
+		tx.setQuantityBefore(beforeQty);
+		tx.setQuantityAfter(afterQty);
+		tx.setReason(reason);
+		tx.setCreatedBy(actorId);
+
+		transactionRepository.save(tx);
+	}
+
+	@Override
+	public List<Stock> getLowStockProducts() {
+
+		return stockRepository.findLowStockProducts();
+	}
+	
+	@Override
+	public Page<StockTransaction> getStockTransactions(
+	        UUID productId,
+	        StockTransactionFilter filter,
+	        Pageable pageable) {
+
+	    return transactionRepository.findTransactions(
+	            productId,
+	            filter.getType(),
+	            filter.getOrderId(),
+	            filter.getReturnRequestId(),
+	            filter.getFromDate(),
+	            filter.getToDate(),
+	            pageable
+	    );
 	}
 }
