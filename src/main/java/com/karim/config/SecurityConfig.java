@@ -55,13 +55,14 @@ public class SecurityConfig {
 	            ).permitAll()
 
 	            // ── PUBLIC AUTH ROUTES ──────────────────────────────
-	            .requestMatchers(HttpMethod.POST,
-	                    "/api/auth/register",
-	                    "/api/auth/login",
-	                    "/api/auth/refresh-token",
-	                    "/api/auth/forgot-password",
-	                    "/api/auth/reset-password"
-	            ).permitAll()
+	            .requestMatchers(HttpMethod.POST, "/api/auth/register").permitAll()
+	            .requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
+	            .requestMatchers(HttpMethod.POST, "/api/auth/refresh-token").permitAll()
+	            .requestMatchers(HttpMethod.POST, "/api/auth/forgot-password").permitAll()
+	            .requestMatchers(HttpMethod.POST, "/api/auth/reset-password").permitAll()
+	            .requestMatchers(HttpMethod.POST, "/api/auth/otp/email/verify").permitAll()
+	            .requestMatchers(HttpMethod.POST, "/api/auth/otp/email/send").permitAll()
+	            .requestMatchers(HttpMethod.POST, "/api/auth/otp/email/send/").permitAll()
 
 	            // ── PUBLIC READ ROUTES ──────────────────────────────
 	            .requestMatchers(HttpMethod.GET,

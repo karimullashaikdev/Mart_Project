@@ -19,6 +19,7 @@ import com.karim.dto.LoginResponseDto;
 import com.karim.dto.OtpResponseDto;
 import com.karim.dto.RefreshTokenDto;
 import com.karim.dto.RegisterDto;
+import com.karim.dto.ResendOtpDto;
 import com.karim.dto.ResetPasswordDto;
 import com.karim.dto.VerifyOtpDto;
 import com.karim.entity.User;
@@ -122,12 +123,13 @@ public class AuthController {
 	// ----------------------------------------------------------------
 	// POST /api/auth/otp/email/send — JWT required
 	// ----------------------------------------------------------------
-	@Operation(summary = "Resend email verification OTP", description = "Sends a fresh 6-digit OTP to the logged-in user's email. JWT required.")
+	@Operation(summary = "Resend email verification OTP", description = "Sends a fresh 6-digit OTP to the logged-in user's email.")
 	@PostMapping("/otp/email/send")
-	public ResponseEntity<Map<String, Object>> sendEmailOtp(@AuthenticationPrincipal UserDetails currentUser) {
+	public ResponseEntity<Map<String, Object>> sendEmailOtp(/* @AuthenticationPrincipal UserDetails currentUser */
+			@Valid @RequestBody ResendOtpDto dto) {
 
-		UUID userId = resolveUserId(currentUser);
-		OtpResponseDto result = authService.sendEmailVerificationOtp(userId);
+		/* UUID userId = resolveUserId(currentUser); */
+		OtpResponseDto result = authService.sendEmailVerificationOtp(dto.getUserId());
 
 		return ResponseEntity.ok(Map.of("success", true, "message", result.getMessage(), "data",
 				Map.of("referenceId", result.getReferenceId())));
@@ -138,11 +140,11 @@ public class AuthController {
 	// ----------------------------------------------------------------
 	@Operation(summary = "Verify email OTP", description = "Submit the 6-digit OTP to activate the account. JWT required.")
 	@PostMapping("/otp/email/verify")
-	public ResponseEntity<Map<String, Object>> verifyEmailOtp(@AuthenticationPrincipal UserDetails currentUser,
+	public ResponseEntity<Map<String, Object>> verifyEmailOtp(/* @AuthenticationPrincipal UserDetails currentUser, */
 			@Valid @RequestBody VerifyOtpDto dto) {
 
-		UUID userId = resolveUserId(currentUser);
-		OtpResponseDto result = authService.verifyEmailOtp(userId, dto.getOtp());
+		/* UUID userId = resolveUserId(currentUser); */
+		OtpResponseDto result = authService.verifyEmailOtp(dto.getUserId(), dto.getOtp());
 
 		return ResponseEntity.ok(Map.of("success", true, "message", result.getMessage(), "data",
 				Map.of("referenceId", result.getReferenceId())));
