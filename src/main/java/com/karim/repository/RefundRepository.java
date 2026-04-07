@@ -20,8 +20,7 @@ public interface RefundRepository extends JpaRepository<Refund, UUID> {
     List<Refund> findByPaymentId(UUID paymentId);
 
     // ✅ findByReference
-    Optional<Refund> findByReference(String reference);
-
+    Optional<Refund> findByRefundReference(String refundReference);
     // ✅ create(data) → handled by save()
 
     // ✅ update(id, data) → handled by save() in service

@@ -29,4 +29,10 @@ public interface PaymentService {
 	void failRefund(UUID refundId, String reason, UUID actorId);
 
 	InvoiceResponse generateInvoice(UUID orderId, UUID paymentId, UUID actorId);
+	
+	InvoiceResponse regenerateInvoice(UUID invoiceId, UUID actorId);
+	
+	InvoiceResponse getInvoice(UUID invoiceId, UUID userId);
+	
+	void softDeletePayment(UUID paymentId, UUID actorId);
 }

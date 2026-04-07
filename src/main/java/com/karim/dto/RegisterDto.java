@@ -11,20 +11,22 @@ import lombok.Data;
 @Data
 public class RegisterDto {
 
-	@NotBlank
+	@NotBlank(message = "Full name is required")
 	private String fullName;
 
-	@Email
 	@NotBlank
+	@Email(message = "Valid email is required")
 	private String email;
 
 	@NotBlank
+	@Pattern(regexp = "^\\+?[0-9]{10,15}$", message = "Valid phone number is required")
 	private String phone;
 
 	@NotBlank
-	@Size(min = 8)
-	@Pattern(regexp = "^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d).+$", message = "Password must contain upper, lower case letters and a digit")
+	@Size(min = 8, message = "Password must be at least 8 characters")
+	@Pattern(regexp = "^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&]).{8,}$", message = "Password must contain uppercase, lowercase, digit and special character")
 	private String password;
 
-	private Role role; // optional (admin-only)
+	// Only admins should be allowed to set this — enforce in controller/service
+	private Role role;
 }

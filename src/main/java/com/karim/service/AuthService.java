@@ -2,6 +2,7 @@ package com.karim.service;
 
 import java.util.UUID;
 
+import com.karim.dto.LoginResponseDto;
 import com.karim.dto.OtpResponseDto;
 import com.karim.dto.RegisterDto;
 import com.karim.entity.User;
@@ -19,4 +20,10 @@ public interface AuthService {
 	void resetPassword(UUID userId, String otp, String newPassword);
 	
 	void softDeleteUser(UUID userId, UUID actorId);
+
+	LoginResponseDto login(String email, String password);
+
+	void logout(UUID userId);
+
+	LoginResponseDto refreshToken(String refreshToken);
 }

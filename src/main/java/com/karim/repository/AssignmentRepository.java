@@ -1,11 +1,6 @@
 package com.karim.repository;
 
-import java.util.UUID;
-
-import org.hibernate.query.assignment.Assignment;
-import org.springframework.data.jpa.repository.JpaRepository;
-
-public interface AssignmentRepository extends JpaRepository<Assignment, UUID> {
+public interface AssignmentRepository {
 
 //    // ✅ findById
 //    Optional<Assignment> findById(UUID id);

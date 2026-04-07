@@ -50,13 +50,13 @@ public interface CategoryRepository extends JpaRepository<Category, UUID> {
 
 	// ✅ hasActiveProducts
 	@Query("""
-			    SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END
-			    FROM Product p
-			    WHERE p.categoryId = :categoryId
-			    AND p.isActive = true
-			    AND p.isDeleted = false
-			""")
-	boolean hasActiveProducts(@Param("categoryId") UUID categoryId);
+		    SELECT CASE WHEN COUNT(p) > 0 THEN true ELSE false END
+		    FROM Product p
+		    WHERE p.category.id = :categoryId
+		    AND p.isActive = true
+		    AND p.isDeleted = false
+		""")
+		boolean hasActiveProducts(@Param("categoryId") UUID categoryId);
 
 	@Query("""
 			    SELECT c FROM Category c

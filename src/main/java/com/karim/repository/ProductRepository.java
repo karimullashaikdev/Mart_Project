@@ -11,6 +11,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.karim.entity.Product;
 
@@ -41,9 +42,10 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     // ✅ bulkUpdatePrices
     @Modifying
+    @Transactional
     @Query("""
         UPDATE Product p
-        SET p.price = :price
+        SET p.sellingPrice = :price
         WHERE p.id = :id
     """)
     void updatePrice(@Param("id") UUID id, @Param("price") BigDecimal price);

@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.karim.entity.DeliveryRide;
 
@@ -24,6 +25,14 @@ public interface DeliveryRideRepository extends JpaRepository<DeliveryRide, UUID
 
     // ✅ softDelete(id, actorId)
     @Modifying
-    @Query("UPDATE DeliveryRide d SET d.deleted = true, d.deletedBy = :actorId WHERE d.id = :id")
-    void softDelete(@Param("id") UUID id, @Param("actorId") UUID actorId);
+    @Transactional
+    @Query("""
+        UPDATE DeliveryRide d
+        SET d.isDeleted = true,
+            d.deletedBy = :actorId,
+            d.deletedAt = CURRENT_TIMESTAMP
+        WHERE d.id = :id
+    """)
+    void softDelete(@Param("id") UUID id,
+                    @Param("actorId") UUID actorId);
 }

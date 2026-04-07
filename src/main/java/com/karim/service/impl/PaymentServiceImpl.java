@@ -35,13 +35,13 @@ public class PaymentServiceImpl implements PaymentService {
 	private final InvoiceRepository invoiceRepository;
 
 	public PaymentServiceImpl(OrderRepository orderRepository, PaymentRepository paymentRepository,
-			OtpRepository otpRepository, RefundRepository refundRepository,InvoiceRepository invoiceRepository) {
+			OtpRepository otpRepository, RefundRepository refundRepository, InvoiceRepository invoiceRepository) {
 		// TODO Auto-generated constructor stub
 		this.orderRepository = orderRepository;
 		this.otpRepository = otpRepository;
 		this.paymentRepository = paymentRepository;
 		this.refundRepository = refundRepository;
-		this.invoiceRepository=invoiceRepository;
+		this.invoiceRepository = invoiceRepository;
 	}
 
 	@Transactional
@@ -245,7 +245,7 @@ public class PaymentServiceImpl implements PaymentService {
 		paymentRepository.save(payment);
 
 		// 📄 5. Trigger invoice generation
-		invoiceService.generateInvoice(payment.getId());
+		//invoiceService.generateInvoice(payment.getId());
 	}
 
 	@Transactional
@@ -469,5 +469,94 @@ public class PaymentServiceImpl implements PaymentService {
 		return InvoiceResponse.builder().invoiceId(invoice.getId()).invoiceNumber(invoice.getInvoiceNumber())
 				.orderId(orderId).paymentId(paymentId).pdfUrl(pdfUrl).status(invoice.getStatus().name())
 				.generatedAt(invoice.getGeneratedAt()).build();
+	}
+
+	@Transactional
+	@Override
+	public InvoiceResponse regenerateInvoice(UUID invoiceId, UUID actorId) {
+
+		// 🔍 1. Fetch invoice
+		Invoice invoice = invoiceRepository.findById(invoiceId)
+				.orElseThrow(() -> new RuntimeException("Invoice not found"));
+
+		// ⚠️ 2. Validate invoice status
+		if (invoice.getStatus() == InvoiceStatus.GENERATED) {
+			// allow regeneration (as per your requirement)
+		}
+
+		// 🔄 3. Increment retry count
+		int currentRetry = invoice.getRetryCount() != null ? invoice.getRetryCount() : 0;
+		invoice.setRetryCount(currentRetry + 1);
+
+		// 🔄 4. Update status
+		invoice.setStatus(InvoiceStatus.REGENERATED);
+
+		// 🔄 5. Regenerate PDF URL (placeholder logic consistent with your approach)
+		String invoiceNumber = invoice.getInvoiceNumber();
+		String pdfUrl = "/invoices/" + invoiceNumber + "_v" + invoice.getRetryCount() + ".pdf";
+
+		invoice.setPdfUrl(pdfUrl);
+
+		// 🔄 6. Update audit fields
+		invoice.setUpdatedBy(actorId);
+		invoice.setUpdatedAt(LocalDateTime.now());
+
+		// 💾 7. Save invoice
+		invoiceRepository.save(invoice);
+
+		// 📦 8. Return response
+		return InvoiceResponse.builder().invoiceId(invoice.getId()).invoiceNumber(invoice.getInvoiceNumber())
+				.orderId(invoice.getOrderId()).paymentId(invoice.getPaymentId()).pdfUrl(invoice.getPdfUrl())
+				.status(invoice.getStatus().name()).generatedAt(invoice.getGeneratedAt()).build();
+	}
+
+	@Override
+	public InvoiceResponse getInvoice(UUID invoiceId, UUID userId) {
+
+		// 🔍 1. Fetch invoice
+		Invoice invoice = invoiceRepository.findById(invoiceId)
+				.orElseThrow(() -> new RuntimeException("Invoice not found"));
+
+		// 🔍 2. Fetch related order
+		Order order = orderRepository.findById(invoice.getOrderId())
+				.orElseThrow(() -> new RuntimeException("Order not found"));
+
+		// 🔐 3. Validate ownership (same pattern as your payment service)
+		if (!order.getUser().getId().equals(userId)) {
+			throw new RuntimeException("Unauthorized access to this invoice");
+		}
+
+		// 📦 4. Map to response DTO
+		return InvoiceResponse.builder().invoiceId(invoice.getId()).invoiceNumber(invoice.getInvoiceNumber())
+				.orderId(invoice.getOrderId()).paymentId(invoice.getPaymentId()).pdfUrl(invoice.getPdfUrl())
+				.status(invoice.getStatus().name()).generatedAt(invoice.getGeneratedAt()).build();
+	}
+
+	@Transactional
+	@Override
+	public void softDeletePayment(UUID paymentId, UUID actorId) {
+
+		// 🔍 1. Fetch payment
+		Payment payment = paymentRepository.findById(paymentId)
+				.orElseThrow(() -> new RuntimeException("Payment not found"));
+
+		// ⚠️ 2. Prevent deletion if already deleted
+		if (payment.getIsDeleted() != null && payment.getIsDeleted()) {
+			throw new RuntimeException("Payment already deleted");
+		}
+
+		// ⚠️ 3. Prevent deleting successful payments (optional safeguard consistent
+		// with financial systems)
+		if (payment.getStatus() == PaymentStatus.SUCCESS) {
+			throw new RuntimeException("Cannot delete a successful payment");
+		}
+
+		// 🔄 4. Soft delete update (aligning with your @SQLDelete pattern)
+		payment.setIsDeleted(true);
+		payment.setDeletedAt(LocalDateTime.now());
+		payment.setUpdatedBy(actorId);
+
+		// 💾 5. Save entity
+		paymentRepository.save(payment);
 	}
 }

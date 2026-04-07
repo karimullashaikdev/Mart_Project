@@ -30,6 +30,22 @@ public interface StockTransactionRepository extends JpaRepository<StockTransacti
 	// ✅ findByReturn(returnRequestId)
 	List<StockTransaction> findByReturnRequestId(UUID returnRequestId);
 
-	Page<StockTransaction> findTransactions(UUID productId, StockTransactionType type, UUID orderId,
-			UUID returnRequestId, LocalDateTime fromDate, LocalDateTime toDate, Pageable pageable);
+	@Query("""
+		    SELECT st FROM StockTransaction st
+		    WHERE (:productId IS NULL OR st.productId = :productId)
+		    AND (:type IS NULL OR st.type = :type)
+		    AND (:orderId IS NULL OR st.orderId = :orderId)
+		    AND (:returnRequestId IS NULL OR st.returnRequestId = :returnRequestId)
+		    AND (:fromDate IS NULL OR st.createdAt >= :fromDate)
+		    AND (:toDate IS NULL OR st.createdAt <= :toDate)
+		""")
+		Page<StockTransaction> findTransactions(
+		        @Param("productId") UUID productId,
+		        @Param("type") StockTransactionType type,
+		        @Param("orderId") UUID orderId,
+		        @Param("returnRequestId") UUID returnRequestId,
+		        @Param("fromDate") LocalDateTime fromDate,
+		        @Param("toDate") LocalDateTime toDate,
+		        Pageable pageable
+		);
 }

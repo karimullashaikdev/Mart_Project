@@ -20,70 +20,68 @@ import jakarta.persistence.Table;
 import lombok.Data;
 
 @Entity
-@Table(name = "agent_location_pings", indexes = { @Index(name = "idx_assignment_id", columnList = "assignment_id"),
-		@Index(name = "idx_agent_id", columnList = "agent_id"),
-		@Index(name = "idx_ping_sequence", columnList = "ping_sequence") })
+@Table(name = "agent_location_pings", indexes = {
+        @Index(name = "idx_assignment_id", columnList = "assignment_id"),
+        @Index(name = "idx_agent_id", columnList = "agent_id"),
+        @Index(name = "idx_ping_sequence", columnList = "ping_sequence")
+})
 @Data
-@SQLDelete(sql = "UPDATE agent_location_pings SET is_deleted = true WHERE id = ?")
+@SQLDelete(sql = "UPDATE agent_location_pings SET is_deleted = true, deleted_at = NOW() WHERE id = ?")
 @SQLRestriction("is_deleted = false")
 public class AgentLocationPing {
 
-	@Id
-	@GeneratedValue
-	private UUID id;
+    @Id
+    @GeneratedValue
+    private UUID id;
 
-	// FK: assignment_id
-	@Column(name = "assignment_id", nullable = false)
-	private UUID assignmentId;
+    @Column(name = "assignment_id", nullable = false)
+    private UUID assignmentId;
 
-	// FK: agent_id
-	@Column(name = "agent_id", nullable = false)
-	private UUID agentId;
+    @Column(name = "agent_id", nullable = false)
+    private UUID agentId;
 
-	@Column(name = "ping_sequence", nullable = false)
-	private Long pingSequence;
+    @Column(name = "ping_sequence", nullable = false)
+    private Long pingSequence;
 
-	@Column(name = "latitude")
-	private float latitude;
+    @Column(name = "latitude")
+    private Double latitude;
 
-	@Column(name = "longitude")
-	private float longitude;
+    @Column(name = "longitude")
+    private Double longitude;
 
-	@Column(name = "accuracy_meters")
-	private float accuracyMeters;
+    @Column(name = "accuracy_meters")
+    private Double accuracyMeters;
 
-	@Column(name = "speed_kmh")
-	private float speedKmh;
+    @Column(name = "speed_kmh")
+    private Double speedKmh;
 
-	@Column(name = "bearing")
-	private float bearing;
+    @Column(name = "bearing")
+    private Double bearing;
 
-	@Column(name = "altitude_meters")
-	private float altitudeMeters;
+    @Column(name = "altitude_meters")
+    private Double altitudeMeters;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "event_type", nullable = false)
-	private AgentLocationEventType eventType;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "event_type", nullable = false)
+    private AgentLocationEventType eventType;
 
-	@Column(name = "ws_connection_id")
-	private String wsConnectionId;
+    @Column(name = "ws_connection_id")
+    private String wsConnectionId;
 
-	@Column(name = "recorded_at")
-	private LocalDateTime recordedAt;
+    @Column(name = "recorded_at")
+    private LocalDateTime recordedAt;
 
-	@Column(name = "is_deleted")
-	private boolean isDeleted = false;
+    @Column(name = "is_deleted")
+    private boolean isDeleted = false;
 
-	@Column(name = "deleted_at")
-	private LocalDateTime deletedAt;
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
-	// FK: deleted_by
-	@Column(name = "deleted_by")
-	private UUID deletedBy;
+    @Column(name = "deleted_by")
+    private UUID deletedBy;
 
-	// Auto timestamp
-	@PrePersist
-	public void onCreate() {
-		this.recordedAt = LocalDateTime.now();
-	}
+    @PrePersist
+    public void onCreate() {
+        this.recordedAt = LocalDateTime.now();
+    }
 }

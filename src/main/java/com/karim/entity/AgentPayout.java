@@ -37,7 +37,7 @@ public class AgentPayout {
 	private UUID agentId;
 
 	@Column(name = "total_amount", nullable = false)
-	private float totalAmount;
+	private Double totalAmount;
 
 	@Column(name = "earnings_count")
 	private Integer earningsCount;

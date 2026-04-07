@@ -11,6 +11,15 @@ import java.time.LocalDateTime;
 import java.util.Map;
 import java.util.UUID;
 
+import jakarta.persistence.*;
+import lombok.Data;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+import java.time.LocalDateTime;
+import java.util.Map;
+import java.util.UUID;
+
 @Entity
 @Table(name = "audit_logs")
 @Data
@@ -34,14 +43,14 @@ public class AuditLog {
     @Column(name = "action", nullable = false)
     private AuditAction action;
 
-    // JSONB → Map (old values)
+    // ✅ MySQL JSON column
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "old_values", columnDefinition = "jsonb")
+    @Column(name = "old_values", columnDefinition = "json")
     private Map<String, Object> oldValues;
 
-    // JSONB → Map (new values)
+    // ✅ MySQL JSON column
     @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "new_values", columnDefinition = "jsonb")
+    @Column(name = "new_values", columnDefinition = "json")
     private Map<String, Object> newValues;
 
     @Column(name = "ip_address")

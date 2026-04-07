@@ -4,12 +4,18 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.karim.dto.LoginResponseDto;
 import com.karim.dto.OtpResponseDto;
 import com.karim.dto.RegisterDto;
 import com.karim.entity.Otp;
 import com.karim.entity.User;
+import com.karim.enums.EmailType;
 import com.karim.enums.OtpPurpose;
 import com.karim.enums.Role;
 import com.karim.exception.ResourceNotFoundException;
@@ -17,86 +23,152 @@ import com.karim.repository.OtpRepository;
 import com.karim.repository.UserRepository;
 import com.karim.service.AuthService;
 import com.karim.service.NotificationService;
+import com.karim.util.JwtUtil;
 
+@Service
 public class AuthServiceImpl implements AuthService {
 
 	private final UserRepository userRepo;
 	private final PasswordEncoder passwordEncoder;
 	private final OtpRepository otpRepo;
 	private final NotificationService notificationService;
+	private final JwtUtil jwtUtil;
+	private final AuthenticationManager authenticationManager;
 
 	private static final SecureRandom random = new SecureRandom();
 
-	public AuthServiceImpl(UserRepository userRepo, PasswordEncoder passwordEncoder,OtpRepository otpRepo, NotificationService notificationService) {
+	public AuthServiceImpl(UserRepository userRepo, PasswordEncoder passwordEncoder, OtpRepository otpRepo,
+			NotificationService notificationService, JwtUtil jwtUtil, AuthenticationManager authenticationManager) {
 		this.userRepo = userRepo;
 		this.passwordEncoder = passwordEncoder;
-		this.otpRepo=otpRepo;
-		this.notificationService=notificationService;
+		this.otpRepo = otpRepo;
+		this.notificationService = notificationService;
+		this.jwtUtil = jwtUtil;
+		this.authenticationManager = authenticationManager;
 	}
 
 	// -------------------------
-	// REGISTER USER
+	// REGISTER
 	// -------------------------
 	@Override
 	@Transactional
 	public User register(RegisterDto dto) {
 
-		// 1. Check duplicates
 		if (userRepo.existsByEmail(dto.getEmail())) {
 			throw new RuntimeException("Email already exists");
 		}
-
 		if (userRepo.existsByPhone(dto.getPhone())) {
 			throw new RuntimeException("Phone already exists");
 		}
 
-		// 2. Create user
 		User user = new User();
 		user.setFullName(dto.getFullName());
 		user.setEmail(dto.getEmail());
 		user.setPhone(dto.getPhone());
-
-		// hash password
 		user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
-
-		// role logic
-		if (dto.getRole() != null) {
-			user.setRole(dto.getRole());
-		} else {
-			user.setRole(Role.USER);
-		}
-
-		// default states
-		user.setIsActive(false); // inactive until verification
-
-		// audit (optional)
+		user.setRole(dto.getRole() != null ? dto.getRole() : Role.USER);
+		user.setIsActive(false); // inactive until email verified
 		user.setCreatedAt(LocalDateTime.now());
 
 		User savedUser = userRepo.save(user);
 
-		// 3. Trigger OTP
+		// use proxy to keep @Transactional on inner method
 		sendEmailVerificationOtp(savedUser.getId());
 
 		return savedUser;
 	}
 
 	// -------------------------
-	// SEND EMAIL OTP
+	// LOGIN
 	// -------------------------
+	@Override
+	@Transactional
+	public LoginResponseDto login(String email, String password) {
+
+		// 1. Let Spring Security verify credentials (throws on bad creds)
+		authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(email, password));
+
+		// 2. Load user for token generation
+		User user = userRepo.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+		// 3. Block inactive users (not yet email-verified)
+		if (!user.getIsActive()) {
+			throw new RuntimeException("Account is not active. Please verify your email first.");
+		}
+
+		// 4. Update login metadata
+		user.setLastLoginAt(LocalDateTime.now());
+		userRepo.save(user);
+
+		// 5. Generate tokens
+		String role = user.getRole().name();
+		String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getEmail(), role);
+		String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getEmail(), role);
+
+		return LoginResponseDto.builder().accessToken(accessToken).refreshToken(refreshToken).userId(user.getId())
+				.email(user.getEmail()).role(role).build();
+	}
+
+	// -------------------------
+	// LOGOUT
+	// -------------------------
+	@Override
+	public void logout(UUID userId) {
+		/*
+		 * With stateless JWT there is nothing to invalidate server-side unless you
+		 * maintain a token blacklist / refresh-token store in DB.
+		 *
+		 * Production approach: - Store the refresh token jti in DB on login - Delete /
+		 * mark it revoked here - JwtAuthFilter checks the blacklist on every request
+		 *
+		 * For now we simply validate the user exists and return. Add blacklist logic
+		 * here when you implement the token store.
+		 */
+		userRepo.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+		// TODO: delete refresh token from token store when implemented
+	}
+
+	// -------------------------
+	// REFRESH TOKEN
+	// -------------------------
+	@Override
+	@Transactional
+	public LoginResponseDto refreshToken(String refreshToken) {
+
+		// 1. Validate it is a refresh token (not an access token)
+		if (!jwtUtil.isTokenValid(refreshToken, "refresh")) {
+			throw new RuntimeException("Invalid or expired refresh token");
+		}
+
+		// 2. Extract claims
+		UUID userId = jwtUtil.extractUserId(refreshToken);
+		String email = jwtUtil.extractEmail(refreshToken);
+		String role = jwtUtil.extractRole(refreshToken);
+
+		// 3. Confirm user still exists and is active
+		User user = userRepo.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+		if (!user.getIsActive()) {
+			throw new RuntimeException("Account is inactive");
+		}
+
+		// 4. Issue new pair
+		String newAccessToken = jwtUtil.generateAccessToken(userId, email, role);
+		String newRefreshToken = jwtUtil.generateRefreshToken(userId, email, role);
+
+		return LoginResponseDto.builder().accessToken(newAccessToken).refreshToken(newRefreshToken).userId(userId)
+				.email(email).role(role).build();
+	}
+
 	@Override
 	@Transactional
 	public OtpResponseDto sendEmailVerificationOtp(UUID userId) {
 
-		// 1. Validate user
-		User user = userRepo.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+		User user = userRepo.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-		// 2. Generate OTP (6-digit)
-		String otp = String.format("%06d", random.nextInt(999999));
-
-		// 3. Hash OTP
+		String otp = String.format("%06d", random.nextInt(1_000_000));
 		String otpHash = passwordEncoder.encode(otp);
 
-		// 4. Build OTP entity
 		Otp otpEntity = new Otp();
 		otpEntity.setUserId(userId);
 		otpEntity.setReferenceId(UUID.randomUUID().toString());
@@ -104,60 +176,34 @@ public class AuthServiceImpl implements AuthService {
 		otpEntity.setOtpHash(otpHash);
 		otpEntity.setExpiresAt(LocalDateTime.now().plusMinutes(5));
 		otpEntity.setMaxAttempts(3);
-
-		// 5. Save OTP
 		otpRepo.save(otpEntity);
 
-		// 6. Send OTP via notification service
-		notificationService.sendEmail(user.getEmail(), "Your OTP Code", "Your OTP is: " + otp);
+		// Updated to use EmailType enum
+		notificationService.sendEmail(userId, EmailType.WELCOME, // <-- Use enum instead of string
+				user.getEmail(), "Your OTP Code", "Your OTP is: " + otp, otpEntity.getReferenceId());
 
 		return OtpResponseDto.builder().message("OTP sent successfully").referenceId(otpEntity.getReferenceId())
 				.build();
 	}
 
+	// -------------------------
+	// VERIFY EMAIL OTP
+	// -------------------------
 	@Override
 	@Transactional
 	public OtpResponseDto verifyEmailOtp(UUID userId, String otp) {
 
-		// 1. Fetch user
-		User user = userRepo.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+		User user = userRepo.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-		// 2. Fetch latest OTP for REGISTRATION
 		Otp otpEntity = otpRepo.findTopByUserIdAndPurposeOrderByCreatedAtDesc(userId, OtpPurpose.REGISTRATION)
-				.orElseThrow(() -> new RuntimeException("OTP not found"));
+				.orElseThrow(() -> new ResourceNotFoundException("OTP not found"));
 
-		// 3. Check if already used
-		if (otpEntity.isUsed()) {
-			throw new RuntimeException("OTP already used");
-		}
+		validateOtp(otpEntity, otp);
 
-		// 4. Check expiry
-		if (otpEntity.getExpiresAt().isBefore(LocalDateTime.now())) {
-			otpEntity.setExpired(true);
-			throw new RuntimeException("OTP expired");
-		}
-
-		// 5. Check attempts
-		if (otpEntity.getAttempts() >= otpEntity.getMaxAttempts()) {
-			otpEntity.setExpired(true);
-			throw new RuntimeException("Max OTP attempts exceeded");
-		}
-
-		// 6. Verify OTP
-		boolean matches = passwordEncoder.matches(otp, otpEntity.getOtpHash());
-
-		if (!matches) {
-			otpEntity.setAttempts(otpEntity.getAttempts() + 1);
-			otpRepo.save(otpEntity);
-			throw new RuntimeException("Invalid OTP");
-		}
-
-		// 7. Mark OTP as used
 		otpEntity.setUsed(true);
 		otpEntity.setUsedAt(LocalDateTime.now());
 		otpRepo.save(otpEntity);
 
-		// 8. Activate user
 		user.setIsActive(true);
 		user.setUpdatedAt(LocalDateTime.now());
 		userRepo.save(user);
@@ -170,16 +216,11 @@ public class AuthServiceImpl implements AuthService {
 	@Transactional
 	public OtpResponseDto sendPasswordResetOtp(String email) {
 
-		// 1. Validate user
-		User user = userRepo.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found"));
+		User user = userRepo.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-		// 2. Generate OTP (6-digit)
-		String otp = String.format("%06d", random.nextInt(999999));
-
-		// 3. Hash OTP
+		String otp = String.format("%06d", random.nextInt(1_000_000));
 		String otpHash = passwordEncoder.encode(otp);
 
-		// 4. Create OTP entity
 		Otp otpEntity = new Otp();
 		otpEntity.setUserId(user.getId());
 		otpEntity.setReferenceId(UUID.randomUUID().toString());
@@ -187,78 +228,81 @@ public class AuthServiceImpl implements AuthService {
 		otpEntity.setOtpHash(otpHash);
 		otpEntity.setExpiresAt(LocalDateTime.now().plusMinutes(5));
 		otpEntity.setMaxAttempts(3);
-
-		// 5. Save OTP
 		otpRepo.save(otpEntity);
 
-		// 6. Send OTP via email
-		notificationService.sendEmail(user.getEmail(), "Password Reset OTP", "Your OTP for password reset is: " + otp);
+		// Updated to use EmailType enum instead of "otp" string
+		notificationService.sendEmail(user.getId(), EmailType.PASSWORD_RESET, // <-- Use enum instead of string
+				user.getEmail(), "Password Reset OTP", "Your OTP for password reset is: " + otp,
+				otpEntity.getReferenceId());
 
 		return OtpResponseDto.builder().message("Password reset OTP sent successfully")
 				.referenceId(otpEntity.getReferenceId()).build();
 	}
 
+	// -------------------------
+	// RESET PASSWORD
+	// -------------------------
 	@Override
 	@Transactional
 	public void resetPassword(UUID userId, String otp, String newPassword) {
 
-		// 1. Validate user
 		User user = userRepo.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-		// 2. Fetch latest OTP for PASSWORD_RESET
 		Otp otpEntity = otpRepo.findTopByUserIdAndPurposeOrderByCreatedAtDesc(userId, OtpPurpose.PASSWORD_RESET)
-				.orElseThrow(() -> new RuntimeException("OTP not found"));
+				.orElseThrow(() -> new ResourceNotFoundException("OTP not found"));
 
-		// 3. Check if OTP already used
-		if (otpEntity.isUsed()) {
-			throw new RuntimeException("OTP already used");
-		}
+		validateOtp(otpEntity, otp);
 
-		// 4. Check expiry
-		if (otpEntity.getExpiresAt().isBefore(LocalDateTime.now())) {
-			otpEntity.setExpired(true);
-			throw new RuntimeException("OTP expired");
-		}
-
-		// 5. Check attempts
-		if (otpEntity.getAttempts() >= otpEntity.getMaxAttempts()) {
-			otpEntity.setExpired(true);
-			throw new RuntimeException("Max OTP attempts exceeded");
-		}
-
-		// 6. Verify OTP
-		boolean matches = passwordEncoder.matches(otp, otpEntity.getOtpHash());
-
-		if (!matches) {
-			otpEntity.setAttempts(otpEntity.getAttempts() + 1);
-			otpRepo.save(otpEntity);
-			throw new RuntimeException("Invalid OTP");
-		}
-
-		// 7. Mark OTP as used
 		otpEntity.setUsed(true);
 		otpEntity.setUsedAt(LocalDateTime.now());
 		otpRepo.save(otpEntity);
 
-		// 8. Update password
 		user.setPasswordHash(passwordEncoder.encode(newPassword));
 		user.setUpdatedAt(LocalDateTime.now());
-
 		userRepo.save(user);
 	}
 
+	// -------------------------
+	// SOFT DELETE USER
+	// -------------------------
 	@Override
 	@Transactional
 	public void softDeleteUser(UUID userId, UUID actorId) {
 
-		// 1. Fetch user (only non-deleted due to @SQLRestriction)
-		User user = userRepo.findById(userId).orElseThrow(() -> new RuntimeException("User not found"));
+		User user = userRepo.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-		// 2. Set audit fields
 		user.setDeletedBy(actorId);
 		user.setDeletedAt(LocalDateTime.now());
+		userRepo.delete(user); // @SQLDelete on entity runs UPDATE instead of DELETE
+	}
 
-		// 3. Soft delete (triggers @SQLDelete)
-		userRepo.delete(user);
+	// ----------------------------------------------------------------
+	// PRIVATE HELPER — shared OTP validation logic
+	// Throws on: already used, expired, max attempts exceeded, wrong OTP
+	// Saves the entity when state changes (expired flag, attempt count)
+	// ----------------------------------------------------------------
+	private void validateOtp(Otp otpEntity, String rawOtp) {
+
+		if (otpEntity.isUsed()) {
+			throw new RuntimeException("OTP already used");
+		}
+
+		if (otpEntity.getExpiresAt().isBefore(LocalDateTime.now())) {
+			otpEntity.setExpired(true);
+			otpRepo.save(otpEntity);
+			throw new RuntimeException("OTP expired");
+		}
+
+		if (otpEntity.getAttempts() >= otpEntity.getMaxAttempts()) {
+			otpEntity.setExpired(true);
+			otpRepo.save(otpEntity);
+			throw new RuntimeException("Max OTP attempts exceeded");
+		}
+
+		if (!passwordEncoder.matches(rawOtp, otpEntity.getOtpHash())) {
+			otpEntity.setAttempts(otpEntity.getAttempts() + 1);
+			otpRepo.save(otpEntity);
+			throw new RuntimeException("Invalid OTP");
+		}
 	}
 }

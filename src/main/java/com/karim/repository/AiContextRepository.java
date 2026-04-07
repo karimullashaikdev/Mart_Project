@@ -1,16 +1,11 @@
 package com.karim.repository;
 
-import java.util.Optional;
-import java.util.UUID;
+public interface AiContextRepository {
 
-import org.springframework.data.jpa.repository.JpaRepository;
+	// ✅ findBySession
+	// Optional<AiContext> findBySessionId(UUID sessionId);
 
-public interface AiContextRepository extends JpaRepository<AiContext, UUID> {
+	// create & update → save()
 
-    // ✅ findBySession
-    Optional<AiContext> findBySessionId(UUID sessionId);
-
-    // create & update → save()
-
-    // softDelete → handled in service layer
+	// softDelete → handled in service layer
 }

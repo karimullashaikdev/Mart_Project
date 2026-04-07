@@ -18,7 +18,7 @@ public interface DeliveryAgentRepository extends JpaRepository<DeliveryAgent, UU
     Optional<DeliveryAgent> findByUserId(UUID userId);
 
     // ✅ findAvailable (status = 'available' AND isVerified = true)
-    @Query("SELECT d FROM DeliveryAgent d WHERE d.status = 'AVAILABLE' AND d.isVerified = true")
+    @Query("SELECT d FROM DeliveryAgent d WHERE d.availabilityStatus = 'AVAILABLE' AND d.isVerified = true")
     List<DeliveryAgent> findAvailable();
 
     // ✅ create(data) → handled by save()

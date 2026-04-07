@@ -11,10 +11,18 @@ import com.karim.enums.ReturnCondition;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import jakarta.persistence.*;
+import lombok.Data;
+import org.hibernate.annotations.SQLDelete;
+import org.hibernate.annotations.SQLRestriction;
+
+import java.time.LocalDateTime;
+import java.util.UUID;
+
 @Entity
 @Table(name = "return_items")
 @Data
-@SQLDelete(sql = "UPDATE return_items SET is_deleted = true WHERE id = ?")
+@SQLDelete(sql = "UPDATE return_items SET is_deleted = true, deleted_at = now() WHERE id = ?")
 @SQLRestriction("is_deleted = false")
 public class ReturnItem {
 
@@ -40,12 +48,16 @@ public class ReturnItem {
     @Column(name = "reason")
     private String reason;
 
+    // ✅ renamed to avoid MySQL reserved keyword
     @Enumerated(EnumType.STRING)
-    @Column(name = "condition", nullable = false)
+    @Column(name = "item_condition", nullable = false)
     private ReturnCondition condition;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
     @Column(name = "is_deleted")
     private boolean isDeleted = false;
@@ -57,8 +69,14 @@ public class ReturnItem {
     @Column(name = "deleted_by")
     private UUID deletedBy;
 
+    // ✅ Auto timestamps
     @PrePersist
     public void onCreate() {
         this.createdAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    public void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
     }
 }

@@ -9,39 +9,44 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
+import org.springframework.transaction.annotation.Transactional;
 
-public interface LocationPingRepository extends JpaRepository<LocationPing, UUID> {
+import com.karim.entity.AgentLocationPing;
 
-    // ✅ create(data) → handled by save()
+public interface LocationPingRepository extends JpaRepository<AgentLocationPing, UUID> {
 
-    // ✅ findLatest(assignmentId)
-    @Query("SELECT lp FROM LocationPing lp WHERE lp.assignmentId = :assignmentId ORDER BY lp.createdAt DESC")
-    Optional<LocationPing> findLatest(@Param("assignmentId") UUID assignmentId);
+	// ✅ create(data) → handled by save()
 
-    // ✅ findInRange(assignmentId, from, to)
-    @Query("""
-        SELECT lp FROM LocationPing lp
-        WHERE lp.assignmentId = :assignmentId
-        AND lp.createdAt BETWEEN :from AND :to
-        ORDER BY lp.createdAt ASC
-    """)
-    List<LocationPing> findInRange(
-            @Param("assignmentId") UUID assignmentId,
-            @Param("from") LocalDateTime from,
-            @Param("to") LocalDateTime to
-    );
+	// ✅ findLatest(assignmentId)
+	@Query("""
+		    SELECT lp FROM AgentLocationPing lp
+		    WHERE lp.assignmentId = :assignmentId
+		    ORDER BY lp.recordedAt DESC
+		""")
+		Optional<AgentLocationPing> findLatest(@Param("assignmentId") UUID assignmentId);
 
-    // ✅ softDeleteByAssignment(assignmentId, actorId)
-    @Modifying
-    @Query("""
-        UPDATE LocationPing lp
-        SET lp.deleted = true,
-            lp.deletedBy = :actorId,
-            lp.deletedAt = CURRENT_TIMESTAMP
-        WHERE lp.assignmentId = :assignmentId
-    """)
-    void softDeleteByAssignment(
-            @Param("assignmentId") UUID assignmentId,
-            @Param("actorId") UUID actorId
-    );
+	// ✅ findInRange(assignmentId, from, to)
+	@Query("""
+		    SELECT lp FROM AgentLocationPing lp
+		    WHERE lp.assignmentId = :assignmentId
+		    AND lp.recordedAt BETWEEN :from AND :to
+		    ORDER BY lp.recordedAt ASC
+		""")
+		List<AgentLocationPing> findInRange(
+		    @Param("assignmentId") UUID assignmentId,
+		    @Param("from") LocalDateTime from,
+		    @Param("to") LocalDateTime to
+		);
+
+	// ✅ softDeleteByAssignment(assignmentId, actorId)
+	@Modifying
+	@Transactional
+	@Query("""
+			    UPDATE AgentLocationPing lp
+			    SET lp.isDeleted = true,
+			        lp.deletedBy = :actorId,
+			        lp.deletedAt = CURRENT_TIMESTAMP
+			    WHERE lp.assignmentId = :assignmentId
+			""")
+	void softDeleteByAssignment(@Param("assignmentId") UUID assignmentId, @Param("actorId") UUID actorId);
 }

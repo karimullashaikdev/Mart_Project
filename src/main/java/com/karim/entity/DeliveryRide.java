@@ -50,19 +50,19 @@ public class DeliveryRide {
 	private UUID pricingConfigId;
 
 	@Column(name = "start_latitude")
-	private float startLatitude;
+	private Double startLatitude;
 
 	@Column(name = "start_longitude")
-	private float startLongitude;
+	private Double startLongitude;
 
 	@Column(name = "end_latitude")
-	private float endLatitude;
+	private Double endLatitude;
 
 	@Column(name = "end_longitude")
-	private float endLongitude;
+	private Double endLongitude;
 
 	@Column(name = "distance_km")
-	private float distanceKm;
+	private Double distanceKm;
 
 	@Column(name = "base_amount")
 	private float baseAmount;

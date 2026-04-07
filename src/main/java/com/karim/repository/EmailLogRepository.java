@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import com.karim.entity.EmailLog;
+import com.karim.enums.EmailStatus;
 
 public interface EmailLogRepository extends JpaRepository<EmailLog, UUID> {
 
@@ -22,4 +23,6 @@ public interface EmailLogRepository extends JpaRepository<EmailLog, UUID> {
     // ✅ findFailedForRetry(maxRetries)
     @Query("SELECT e FROM EmailLog e WHERE e.status = 'FAILED' AND e.retryCount < :maxRetries")
     List<EmailLog> findFailedForRetry(@Param("maxRetries") int maxRetries);
+
+	List<EmailLog> findByStatusAndRetryCountLessThan(EmailStatus failed, int mAX_RETRY_LIMIT);
 }

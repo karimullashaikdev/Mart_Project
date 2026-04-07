@@ -6,6 +6,6 @@ import lombok.Data;
 @Data
 @Builder
 public class OtpResponseDto {
-	private String message;
-	private String referenceId;
+    private String message;
+    private String referenceId;
 }

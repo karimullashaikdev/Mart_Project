@@ -118,9 +118,9 @@ public class ProductServiceImpl implements ProductService {
 
 		// ✅ Stock mapping
 		if (stock != null) {
-			dto.setAvailableQuantity(stock.getAvailableQuantity());
-			dto.setReservedQuantity(stock.getReservedQuantity());
-			dto.setInStock(stock.getAvailableQuantity() != null && stock.getAvailableQuantity() > 0);
+			dto.setAvailableQuantity(stock.getQuantityAvailable());
+			dto.setReservedQuantity(stock.getQuantityReserved());
+			dto.setInStock(stock.getQuantityAvailable() != null && stock.getQuantityAvailable() > 0);
 		} else {
 			dto.setAvailableQuantity(0);
 			dto.setReservedQuantity(0);
@@ -166,9 +166,9 @@ public class ProductServiceImpl implements ProductService {
 
 		// ✅ Stock mapping
 		if (stock != null) {
-			dto.setAvailableQuantity(stock.getAvailableQuantity());
-			dto.setReservedQuantity(stock.getReservedQuantity());
-			dto.setInStock(stock.getAvailableQuantity() != null && stock.getAvailableQuantity() > 0);
+			dto.setAvailableQuantity(stock.getQuantityAvailable());
+			dto.setReservedQuantity(stock.getQuantityReserved());
+			dto.setInStock(stock.getQuantityAvailable() != null && stock.getQuantityAvailable() > 0);
 		} else {
 			dto.setAvailableQuantity(0);
 			dto.setReservedQuantity(0);
@@ -214,9 +214,9 @@ public class ProductServiceImpl implements ProductService {
 			Stock stock = stockRepository.findByProductId(product.getId()).orElse(null);
 
 			if (stock != null) {
-				dto.setAvailableQuantity(stock.getAvailableQuantity());
-				dto.setReservedQuantity(stock.getReservedQuantity());
-				dto.setInStock(stock.getAvailableQuantity() != null && stock.getAvailableQuantity() > 0);
+				dto.setAvailableQuantity(stock.getQuantityAvailable());
+				dto.setReservedQuantity(stock.getQuantityReserved());
+				dto.setInStock(stock.getQuantityAvailable() != null && stock.getQuantityAvailable() > 0);
 			} else {
 				dto.setAvailableQuantity(0);
 				dto.setReservedQuantity(0);

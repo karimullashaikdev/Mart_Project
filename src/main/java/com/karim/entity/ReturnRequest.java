@@ -4,10 +4,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
-import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
-import org.hibernate.type.SqlTypes;
 
 import com.karim.enums.ReturnReason;
 import com.karim.enums.ReturnStatus;
@@ -19,6 +17,7 @@ import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
@@ -55,9 +54,8 @@ public class ReturnRequest {
 	@Column(name = "description")
 	private String description;
 
-	// JSONB → List of images
-	@JdbcTypeCode(SqlTypes.JSON)
-	@Column(name = "images", columnDefinition = "jsonb")
+	@Lob
+	@Column(columnDefinition = "JSON")
 	private List<String> images;
 
 	@Enumerated(EnumType.STRING)
