@@ -84,6 +84,157 @@
   }
   .logout-btn:hover { border-color: #ccc; color: var(--text); }
 
+  /* ── Profile Avatar Button ── */
+  .profile-avatar-btn {
+    width: 36px; height: 36px; border-radius: 50%;
+    background: var(--accent); color: white; border: none;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: opacity 0.2s, transform 0.15s;
+    font-family: 'DM Sans', sans-serif; flex-shrink: 0; overflow: hidden;
+  }
+  .profile-avatar-btn:hover { opacity: 0.85; transform: scale(1.06); }
+  .profile-avatar-btn img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+  /* ── Overlay ── */
+  .drawer-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.25);
+    z-index: 200; opacity: 0; pointer-events: none; transition: opacity 0.3s;
+  }
+  .drawer-overlay.open { opacity: 1; pointer-events: all; }
+
+  /* ── Profile Drawer ── */
+  .profile-drawer {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 400px; max-width: 100vw;
+    background: var(--surface); border-left: 1px solid var(--border);
+    z-index: 201; display: flex; flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.35s cubic-bezier(0.32,0.72,0,1);
+    box-shadow: -20px 0 60px rgba(0,0,0,0.08);
+  }
+  .profile-drawer.open { transform: translateX(0); }
+
+  .drawer-header {
+    padding: 20px 24px 16px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
+  }
+  .drawer-title { font-family: 'DM Serif Display', serif; font-size: 20px; font-weight: 400; }
+  .drawer-close {
+    width: 32px; height: 32px; border: none; background: var(--bg);
+    border-radius: 8px; cursor: pointer; font-size: 16px; color: var(--muted);
+    display: flex; align-items: center; justify-content: center; transition: background 0.2s, color 0.2s;
+  }
+  .drawer-close:hover { background: var(--border); color: var(--text); }
+
+  .drawer-body { flex: 1; overflow-y: auto; }
+  .drawer-body::-webkit-scrollbar { width: 4px; }
+  .drawer-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ── Tabs ── */
+  .drawer-tabs { display: flex; border-bottom: 1px solid var(--border); background: var(--bg); flex-shrink: 0; }
+  .dtab {
+    flex: 1; padding: 12px 8px; border: none; background: none;
+    font-family: 'DM Sans', sans-serif; font-size: 12px; font-weight: 500;
+    letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted);
+    cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s;
+  }
+  .dtab.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--surface); }
+  .dtab:hover:not(.active) { color: var(--text); }
+
+  .tab-panel { display: none; padding: 20px 24px; }
+  .tab-panel.active { display: block; }
+
+  /* ── Profile hero ── */
+  .profile-hero {
+    display: flex; align-items: center; gap: 16px;
+    padding: 20px 24px;
+    background: linear-gradient(135deg, #eef6f1 0%, #f7f5f0 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  .profile-big-avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: var(--accent); color: white;
+    font-size: 22px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'DM Sans', sans-serif; flex-shrink: 0; overflow: hidden;
+  }
+  .profile-big-avatar img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .profile-hero-info h3 { font-family: 'DM Serif Display', serif; font-size: 18px; font-weight: 400; margin-bottom: 2px; }
+  .profile-hero-info p { font-size: 13px; color: var(--muted); }
+
+  /* ── Section label ── */
+  .section-label {
+    font-size: 11px; font-weight: 500; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted);
+    margin-bottom: 12px; margin-top: 20px;
+  }
+  .section-label:first-child { margin-top: 0; }
+
+  /* ── Form fields ── */
+  .field-group { margin-bottom: 14px; }
+  .field-group label {
+    display: block; font-size: 12px; font-weight: 500; color: var(--muted);
+    margin-bottom: 6px; letter-spacing: 0.06em; text-transform: uppercase;
+  }
+  .field-group input, .field-group select {
+    width: 100%; padding: 10px 14px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; font-family: 'DM Sans', sans-serif;
+    font-size: 14px; color: var(--text); outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s; -webkit-appearance: none;
+  }
+  .field-group input:focus, .field-group select:focus {
+    border-color: var(--accent); box-shadow: 0 0 0 3px rgba(45,106,79,0.1);
+  }
+  .field-group input:disabled { opacity: 0.6; cursor: not-allowed; }
+
+  /* ── Drawer buttons ── */
+  .dbtn {
+    width: 100%; padding: 11px 16px; border-radius: 8px; border: none;
+    font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s; margin-top: 8px;
+  }
+  .dbtn-primary { background: var(--accent); color: white; }
+  .dbtn-primary:hover { opacity: 0.88; transform: translateY(-1px); }
+  .dbtn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+  .dbtn-secondary { background: var(--bg); color: var(--text); border: 1px solid var(--border) !important; }
+  .dbtn-secondary:hover { border-color: #bbb !important; }
+  .dbtn-danger { background: rgba(224,108,108,0.1); color: #c0392b; border: 1px solid rgba(224,108,108,0.25) !important; }
+  .dbtn-danger:hover { background: rgba(224,108,108,0.18); }
+
+  /* ── Address cards ── */
+  .address-card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 10px;
+  }
+  .address-card-label { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--accent); margin-bottom: 4px; }
+  .address-card-text { font-size: 13px; color: var(--text); line-height: 1.5; }
+  .address-card-meta { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* ── Inline messages ── */
+  .inline-msg { border-radius: 8px; padding: 10px 14px; font-size: 13px; margin-top: 10px; display: none; }
+  .inline-msg.success { background: rgba(45,106,79,0.08); color: var(--accent); border: 1px solid rgba(45,106,79,0.2); display: block; }
+  .inline-msg.error   { background: rgba(224,108,108,0.1); color: #c0392b; border: 1px solid rgba(224,108,108,0.25); display: block; }
+
+  /* ── Add address toggle ── */
+  .add-addr-toggle {
+    display: flex; align-items: center; gap: 8px;
+    background: none; border: 1px dashed var(--border); border-radius: 10px;
+    padding: 12px 16px; width: 100%; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; color: var(--muted); cursor: pointer; transition: all 0.2s; margin-top: 4px;
+  }
+  .add-addr-toggle:hover { border-color: var(--accent); color: var(--accent); }
+
+  .skel-line { height: 14px; background: var(--border); border-radius: 4px; margin-bottom: 10px; animation: pulse 1.4s ease infinite alternate; }
+
+  .drawer-footer { padding: 16px 24px; border-top: 1px solid var(--border); flex-shrink: 0; }
+
+  @media (max-width: 480px) {
+    .profile-drawer { width: 100vw; }
+    nav { padding: 0 16px; }
+  }
+
   /* ── NEW: My Orders nav button ── */
   .orders-btn {
     display: inline-flex;
@@ -406,17 +557,145 @@
     <span>✦</span> Karim
   </div>
   <div class="nav-right">
-    <div class="user-chip" id="userChip">👤 User</div>
-
-    <!-- ✅ NEW: My Orders button -->
+    <!-- ✅ My Orders button -->
     <a class="orders-btn" href="my-orders.html">📋 My Orders</a>
 
     <button class="cart-btn" id="cartBtn" onclick="goToCart()" style="display:none">
       🛒 View Cart <span class="cart-count" id="cartCount">0</span>
     </button>
+
+    <!-- ✅ Profile avatar button -->
+    <button class="profile-avatar-btn" id="profileAvatarBtn" onclick="openDrawer()" title="My Account">
+      <span id="profileAvatarInitials">👤</span>
+    </button>
+
     <button class="logout-btn" onclick="logout()">Sign out</button>
   </div>
 </nav>
+
+<!-- ── Drawer Overlay ── -->
+<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
+
+<!-- ── Profile Drawer ── -->
+<div class="profile-drawer" id="profileDrawer">
+  <div class="drawer-header">
+    <span class="drawer-title">My Account</span>
+    <button class="drawer-close" onclick="closeDrawer()">✕</button>
+  </div>
+
+  <!-- Profile hero -->
+  <div class="profile-hero">
+    <div class="profile-big-avatar" id="bigAvatar">👤</div>
+    <div class="profile-hero-info">
+      <h3 id="heroName">Loading…</h3>
+      <p id="heroEmail"></p>
+    </div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="drawer-tabs">
+    <button class="dtab active" onclick="switchTab('account', this)">Account</button>
+    <button class="dtab" onclick="switchTab('profile', this)">Profile</button>
+    <button class="dtab" onclick="switchTab('addresses', this)">Addresses</button>
+  </div>
+
+  <div class="drawer-body">
+
+    <!-- ── TAB: Account ── -->
+    <div class="tab-panel active" id="tab-account">
+      <div class="section-label">Account Details</div>
+      <div class="field-group">
+        <label>Full Name</label>
+        <input type="text" id="acc-name" placeholder="Your name" />
+      </div>
+      <div class="field-group">
+        <label>Email</label>
+        <input type="email" id="acc-email" placeholder="your@email.com" />
+      </div>
+      <div class="field-group">
+        <label>Phone</label>
+        <input type="tel" id="acc-phone" placeholder="+91 XXXXX XXXXX" />
+      </div>
+      <div class="inline-msg" id="acc-msg"></div>
+      <button class="dbtn dbtn-primary" id="acc-save-btn" onclick="saveAccount()">Save Changes</button>
+    </div>
+
+    <!-- ── TAB: Profile ── -->
+    <div class="tab-panel" id="tab-profile">
+      <div class="section-label">Profile Info</div>
+      <div class="field-group">
+        <label>Avatar URL</label>
+        <input type="url" id="prf-avatar" placeholder="https://…" oninput="previewAvatar(this.value)" />
+      </div>
+      <div class="field-group">
+        <label>Date of Birth</label>
+        <input type="date" id="prf-dob" />
+      </div>
+      <div class="field-group">
+        <label>Gender</label>
+        <select id="prf-gender">
+          <option value="">Select…</option>
+          <option value="MALE">Male</option>
+          <option value="FEMALE">Female</option>
+          <option value="OTHER">Other</option>
+          <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
+        </select>
+      </div>
+      <div class="inline-msg" id="prf-msg"></div>
+      <button class="dbtn dbtn-primary" id="prf-save-btn" onclick="saveProfile()">Save Profile</button>
+
+      <div class="section-label" style="margin-top:28px">Danger Zone</div>
+      <button class="dbtn dbtn-danger" onclick="deleteProfile()">Delete My Profile</button>
+    </div>
+
+    <!-- ── TAB: Addresses ── -->
+    <div class="tab-panel" id="tab-addresses">
+      <div class="section-label">Saved Addresses</div>
+      <div id="addressList">
+        <div class="skel-line" style="width:80%"></div>
+        <div class="skel-line" style="width:60%"></div>
+        <div class="skel-line" style="width:70%"></div>
+      </div>
+      <button class="add-addr-toggle" id="addAddrToggle" onclick="toggleAddressForm()">＋ Add New Address</button>
+
+      <!-- Add address form (hidden by default) -->
+      <div id="addAddrForm" style="display:none; margin-top:16px; background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:16px;">
+        <div class="field-group">
+          <label>Label</label>
+          <input type="text" id="addr-label" placeholder="Home / Work / Other" />
+        </div>
+        <div class="field-group">
+          <label>Street</label>
+          <input type="text" id="addr-street" placeholder="123 Main St" />
+        </div>
+        <div class="field-group">
+          <label>City</label>
+          <input type="text" id="addr-city" placeholder="Hyderabad" />
+        </div>
+        <div class="field-group">
+          <label>State</label>
+          <input type="text" id="addr-state" placeholder="Telangana" />
+        </div>
+        <div class="field-group">
+          <label>Pincode</label>
+          <input type="text" id="addr-pincode" placeholder="500001" />
+        </div>
+        <div class="field-group">
+          <label>Phone</label>
+          <input type="tel" id="addr-phone" placeholder="+91 XXXXX XXXXX" />
+        </div>
+        <div class="inline-msg" id="addr-msg"></div>
+        <button class="dbtn dbtn-primary" id="addr-save-btn" onclick="saveAddress()">Save Address</button>
+        <button class="dbtn dbtn-secondary" onclick="toggleAddressForm()">Cancel</button>
+      </div>
+    </div>
+
+  </div><!-- /drawer-body -->
+
+  <div class="drawer-footer">
+    <button class="dbtn dbtn-danger" onclick="logout()" style="margin-top:0">Sign Out</button>
+  </div>
+</div>
 
 <div class="hero">
   <div class="hero-label">Our Catalogue</div>
@@ -462,9 +741,6 @@
     }
   })();
 
-  const username = localStorage.getItem('username') || 'User';
-  document.getElementById('userChip').textContent = '👤 ' + username;
-
   const token = localStorage.getItem('authToken');
 
   // ── Pagination state ──
@@ -476,7 +752,305 @@
   let searchQuery = '';
   let searchTimer = null;
 
-  // ── Emoji fallback ──
+  // ── Profile state ──
+  let profileExists = false;
+  let userData = {};
+
+  // ═══════════════════════════════════════
+  // DRAWER OPEN / CLOSE
+  // ═══════════════════════════════════════
+  function openDrawer() {
+    document.getElementById('profileDrawer').classList.add('open');
+    document.getElementById('drawerOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+    loadAccountData();
+  }
+  function closeDrawer() {
+    document.getElementById('profileDrawer').classList.remove('open');
+    document.getElementById('drawerOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
+
+  // ── Tab switching ──
+  function switchTab(name, btn) {
+    document.querySelectorAll('.dtab').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'addresses') loadAddresses();
+    if (name === 'profile')   loadProfile();
+  }
+
+  // ── Avatar initials helper ──
+  function getInitials(name) {
+    if (!name) return '👤';
+    return name.trim().split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  }
+  function setAvatarUrl(url) {
+    const big = document.getElementById('bigAvatar');
+    const small = document.getElementById('profileAvatarInitials');
+    if (url) {
+      big.innerHTML = `<img src="${url}" onerror="this.parentElement.textContent='${getInitials(userData.fullName || userData.name || '')}'" />`;
+      small.innerHTML = `<img src="${url}" style="width:100%;height:100%;border-radius:50%;object-fit:cover" onerror="this.outerHTML='${getInitials(userData.fullName || userData.name || '')}'" />`;
+    }
+  }
+  function previewAvatar(url) {
+    if (url) setAvatarUrl(url);
+  }
+
+  // ═══════════════════════════════════════
+  // ACCOUNT TAB — GET /me + PATCH /me
+  // ═══════════════════════════════════════
+  async function loadAccountData() {
+    try {
+      const res = await fetch('/api/users/me', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (res.status === 401) { logout(); return; }
+      if (!res.ok) return;
+      const json = await res.json();
+      userData = json.data || json;
+
+      const name  = userData.fullName || userData.name || '';
+      const email = userData.email || '';
+      const phone = userData.phone || userData.phoneNumber || '';
+
+      document.getElementById('acc-name').value  = name;
+      document.getElementById('acc-email').value = email;
+      document.getElementById('acc-phone').value = phone;
+
+      // Update hero
+      document.getElementById('heroName').textContent  = name || 'My Account';
+      document.getElementById('heroEmail').textContent = email;
+
+      // Update avatar initials
+      const initials = getInitials(name);
+      document.getElementById('bigAvatar').textContent             = initials;
+      document.getElementById('profileAvatarInitials').textContent = initials;
+
+      // Load profile pic if profile exists
+      loadProfileForAvatar();
+    } catch (err) { console.warn('loadAccountData:', err); }
+  }
+
+  async function saveAccount() {
+    const btn = document.getElementById('acc-save-btn');
+    const msg = document.getElementById('acc-msg');
+    msg.className = 'inline-msg';
+
+    const body = {
+      fullName: document.getElementById('acc-name').value.trim() || undefined,
+      email:    document.getElementById('acc-email').value.trim() || undefined,
+      phone:    document.getElementById('acc-phone').value.trim() || undefined,
+    };
+    Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
+
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/users/me', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(body)
+      });
+      if (res.status === 401) { logout(); return; }
+      if (!res.ok) { const e = await res.json().catch(()=>{}); throw new Error(e?.message || 'Update failed'); }
+
+      const name = body.fullName || userData.fullName || '';
+      document.getElementById('heroName').textContent = name;
+      document.getElementById('profileAvatarInitials').textContent = getInitials(name);
+      document.getElementById('bigAvatar').textContent = getInitials(name);
+      localStorage.setItem('username', name);
+
+      msg.className = 'inline-msg success'; msg.textContent = '✓ Account updated successfully';
+    } catch (err) {
+      msg.className = 'inline-msg error'; msg.textContent = '✕ ' + err.message;
+    } finally { btn.disabled = false; btn.textContent = 'Save Changes'; }
+  }
+
+  // ═══════════════════════════════════════
+  // PROFILE TAB — GET/POST/PATCH /me/profile
+  // ═══════════════════════════════════════
+  async function loadProfileForAvatar() {
+    try {
+      const res = await fetch('/api/users/me/profile', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (!res.ok) return;
+      const json = await res.json();
+      const p = json.data || json;
+      if (p?.avatarUrl) setAvatarUrl(p.avatarUrl);
+    } catch {}
+  }
+
+  async function loadProfile() {
+    const msg = document.getElementById('prf-msg');
+    msg.className = 'inline-msg';
+    try {
+      const res = await fetch('/api/users/me/profile', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (res.status === 404) {
+        profileExists = false;
+        document.getElementById('prf-save-btn').textContent = 'Create Profile';
+        return;
+      }
+      if (res.status === 401) { logout(); return; }
+      if (!res.ok) return;
+
+      const json = await res.json();
+      const p = json.data || json;
+      profileExists = true;
+
+      document.getElementById('prf-avatar').value  = p.avatarUrl || '';
+      document.getElementById('prf-dob').value     = p.dateOfBirth ? p.dateOfBirth.split('T')[0] : '';
+      document.getElementById('prf-gender').value  = p.gender || '';
+      document.getElementById('prf-save-btn').textContent = 'Save Profile';
+      if (p.avatarUrl) setAvatarUrl(p.avatarUrl);
+    } catch (err) { console.warn('loadProfile:', err); }
+  }
+
+  async function saveProfile() {
+    const btn = document.getElementById('prf-save-btn');
+    const msg = document.getElementById('prf-msg');
+    msg.className = 'inline-msg';
+
+    const body = {
+      avatarUrl:   document.getElementById('prf-avatar').value.trim() || undefined,
+      dateOfBirth: document.getElementById('prf-dob').value || undefined,
+      gender:      document.getElementById('prf-gender').value || undefined,
+    };
+    Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
+
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const method = profileExists ? 'PATCH' : 'POST';
+      const res = await fetch('/api/users/me/profile', {
+        method,
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(body)
+      });
+      if (res.status === 401) { logout(); return; }
+      if (res.status === 409) { profileExists = true; /* already exists, retry PATCH next */ }
+      if (!res.ok && res.status !== 409) {
+        const e = await res.json().catch(()=>{});
+        throw new Error(e?.message || 'Failed to save profile');
+      }
+      profileExists = true;
+      btn.textContent = 'Save Profile';
+      if (body.avatarUrl) setAvatarUrl(body.avatarUrl);
+      msg.className = 'inline-msg success'; msg.textContent = '✓ Profile saved successfully';
+    } catch (err) {
+      msg.className = 'inline-msg error'; msg.textContent = '✕ ' + err.message;
+    } finally { btn.disabled = false; if (btn.textContent === 'Saving…') btn.textContent = 'Save Profile'; }
+  }
+
+  async function deleteProfile() {
+    if (!confirm('Delete your profile? Your account will remain active.')) return;
+    try {
+      const res = await fetch('/api/users/me/profile', {
+        method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (res.status === 401) { logout(); return; }
+      if (res.status === 204 || res.ok) {
+        profileExists = false;
+        document.getElementById('prf-avatar').value = '';
+        document.getElementById('prf-dob').value    = '';
+        document.getElementById('prf-gender').value = '';
+        document.getElementById('prf-save-btn').textContent = 'Create Profile';
+        showToast('✓ Profile deleted');
+      }
+    } catch (err) { showToast('❌ ' + err.message, true); }
+  }
+
+  // ═══════════════════════════════════════
+  // ADDRESSES TAB — GET/POST /me/addresses
+  // ═══════════════════════════════════════
+  async function loadAddresses() {
+    const list = document.getElementById('addressList');
+    list.innerHTML = `
+      <div class="skel-line" style="width:80%"></div>
+      <div class="skel-line" style="width:60%"></div>
+      <div class="skel-line" style="width:70%"></div>`;
+    try {
+      const res = await fetch('/api/users/me/addresses', { headers: { 'Authorization': 'Bearer ' + token } });
+      if (res.status === 401) { logout(); return; }
+      if (!res.ok) throw new Error('Failed to load addresses');
+      const json = await res.json();
+      const addresses = json.data || json;
+      renderAddresses(Array.isArray(addresses) ? addresses : []);
+    } catch (err) {
+      list.innerHTML = `<div style="font-size:13px;color:var(--muted);text-align:center;padding:20px 0">Could not load addresses</div>`;
+    }
+  }
+
+  function renderAddresses(addresses) {
+    const list = document.getElementById('addressList');
+    if (addresses.length === 0) {
+      list.innerHTML = `<div style="font-size:13px;color:var(--muted);text-align:center;padding:20px 0">No addresses saved yet</div>`;
+      return;
+    }
+    list.innerHTML = addresses.map(a => `
+      <div class="address-card">
+        <div class="address-card-label">${a.label || a.type || 'Address'}</div>
+        <div class="address-card-text">
+          ${[a.street, a.city, a.state, a.pincode || a.zipCode].filter(Boolean).join(', ')}
+        </div>
+        ${a.phone ? `<div class="address-card-meta">📞 ${a.phone}</div>` : ''}
+      </div>`).join('');
+  }
+
+  function toggleAddressForm() {
+    const form = document.getElementById('addAddrForm');
+    const toggle = document.getElementById('addAddrToggle');
+    const isHidden = form.style.display === 'none';
+    form.style.display = isHidden ? 'block' : 'none';
+    toggle.style.display = isHidden ? 'none' : 'flex';
+    if (isHidden) {
+      document.getElementById('addr-label').value   = '';
+      document.getElementById('addr-street').value  = '';
+      document.getElementById('addr-city').value    = '';
+      document.getElementById('addr-state').value   = '';
+      document.getElementById('addr-pincode').value = '';
+      document.getElementById('addr-phone').value   = '';
+      document.getElementById('addr-msg').className = 'inline-msg';
+    }
+  }
+
+  async function saveAddress() {
+    const btn = document.getElementById('addr-save-btn');
+    const msg = document.getElementById('addr-msg');
+    msg.className = 'inline-msg';
+
+    const body = {
+      label:   document.getElementById('addr-label').value.trim() || undefined,
+      street:  document.getElementById('addr-street').value.trim() || undefined,
+      city:    document.getElementById('addr-city').value.trim() || undefined,
+      state:   document.getElementById('addr-state').value.trim() || undefined,
+      pincode: document.getElementById('addr-pincode').value.trim() || undefined,
+      phone:   document.getElementById('addr-phone').value.trim() || undefined,
+    };
+
+    if (!body.street && !body.city) {
+      msg.className = 'inline-msg error'; msg.textContent = 'Please fill in at least street and city'; return;
+    }
+    Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
+
+    btn.disabled = true; btn.textContent = 'Saving…';
+    try {
+      const res = await fetch('/api/users/me/addresses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        body: JSON.stringify(body)
+      });
+      if (res.status === 401) { logout(); return; }
+      if (!res.ok) { const e = await res.json().catch(()=>{}); throw new Error(e?.message || 'Failed to save address'); }
+
+      toggleAddressForm();
+      loadAddresses();
+      showToast('✓ Address saved');
+    } catch (err) {
+      msg.className = 'inline-msg error'; msg.textContent = '✕ ' + err.message;
+    } finally { btn.disabled = false; btn.textContent = 'Save Address'; }
+  }
+
+  // ═══════════════════════════════════════
+  // PRODUCTS
+  // ═══════════════════════════════════════
   function categoryEmoji(category) {
     if (!category) return '📦';
     const c = category.toLowerCase();
@@ -490,7 +1064,6 @@
     return '📦';
   }
 
-  // ── Skeleton ──
   function showSkeleton() {
     document.getElementById('productGrid').innerHTML = Array(pageSize > 6 ? 6 : pageSize).fill(0).map(() => `
       <div class="product-card" style="pointer-events:none">
@@ -506,50 +1079,32 @@
     document.getElementById('paginationWrapper').style.display = 'none';
   }
 
-  // ── Fetch products (paginated) ──
   async function loadProducts(page = 0) {
     showSkeleton();
     currentPage = page;
-
     try {
-      const params = new URLSearchParams({ page: page, size: pageSize });
+      const params = new URLSearchParams({ page, size: pageSize });
       if (currentFilter && currentFilter !== 'all') params.set('category', currentFilter);
       if (searchQuery && searchQuery.trim()) params.set('search', searchQuery.trim());
 
-      const res = await fetch(
-        `/api/products?${params.toString()}`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer ' + token
-          }
-        }
-      );
+      const res = await fetch(`/api/products?${params.toString()}`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }
+      });
 
-      if (res.status === 401) {
-        localStorage.clear();
-        window.location.href = 'login.html';
-        return;
-      }
+      if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return; }
       if (!res.ok) throw new Error('Server returned ' + res.status);
 
       const data = await res.json();
-
-      const products     = data.content || [];
-      totalPages         = data.totalPages || 1;
-      totalElements      = data.totalElements || products.length;
-      currentPage        = data.number ?? page;
+      const products  = data.content || [];
+      totalPages      = data.totalPages || 1;
+      totalElements   = data.totalElements || products.length;
+      currentPage     = data.number ?? page;
 
       renderProducts(products);
       renderPagination();
-
-      if (page === 0 && currentFilter === 'all' && !searchQuery) {
-        buildFilters(products);
-      }
-
+      if (page === 0 && currentFilter === 'all' && !searchQuery) buildFilters(products);
     } catch (err) {
-      console.error(err);
       document.getElementById('productGrid').innerHTML = `
         <div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--muted);">
           <div style="font-size:36px;margin-bottom:12px">⚠️</div>
@@ -560,15 +1115,12 @@
     }
   }
 
-  // ── Render product cards ──
   function renderProducts(products) {
     const grid = document.getElementById('productGrid');
-
     if (products.length === 0) {
       grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--muted);">No products found.</div>`;
       return;
     }
-
     grid.innerHTML = products.map((p, i) => {
       const name     = p.name || p.productName || 'Product';
       const desc     = p.description || p.desc || '';
@@ -578,7 +1130,6 @@
       const emoji    = categoryEmoji(category);
       const stock    = p.stock ?? p.quantity ?? null;
       const badge    = stock === 0 ? 'Out of Stock' : (p.badge || null);
-
       return `
         <div class="product-card" style="animation-delay:${i * 0.06}s">
           <div class="product-img" style="${imageUrl ? `background:url('${imageUrl}') center/cover no-repeat` : ''}">
@@ -601,84 +1152,57 @@
     }).join('');
   }
 
-  // ── Render pagination controls ──
   function renderPagination() {
     const wrapper  = document.getElementById('paginationWrapper');
     const info     = document.getElementById('paginationInfo');
     const controls = document.getElementById('paginationControls');
-
-    if (totalPages <= 1) {
-      wrapper.style.display = 'none';
-      return;
-    }
-
+    if (totalPages <= 1) { wrapper.style.display = 'none'; return; }
     wrapper.style.display = 'flex';
-
     const from = currentPage * pageSize + 1;
     const to   = Math.min((currentPage + 1) * pageSize, totalElements);
     info.innerHTML = `Showing <strong>${from}–${to}</strong> of <strong>${totalElements}</strong> products`;
-
-    let btns = '';
-    btns += `<button class="page-btn" onclick="loadProducts(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>‹ Prev</button>`;
-
+    let btns = `<button class="page-btn" onclick="loadProducts(${currentPage - 1})" ${currentPage === 0 ? 'disabled' : ''}>‹ Prev</button>`;
     const range = getPageRange(currentPage, totalPages);
     let lastPage = -1;
     for (const p of range) {
       if (p === '...') {
         btns += `<span style="padding:0 4px;color:var(--muted);align-self:center">…</span>`;
       } else {
-        if (lastPage !== -1 && p - lastPage > 1) {
-          btns += `<span style="padding:0 4px;color:var(--muted);align-self:center">…</span>`;
-        }
+        if (lastPage !== -1 && p - lastPage > 1) btns += `<span style="padding:0 4px;color:var(--muted);align-self:center">…</span>`;
         btns += `<button class="page-btn ${p === currentPage ? 'active' : ''}" onclick="loadProducts(${p})">${p + 1}</button>`;
         lastPage = p;
       }
     }
-
     btns += `<button class="page-btn" onclick="loadProducts(${currentPage + 1})" ${currentPage >= totalPages - 1 ? 'disabled' : ''}>Next ›</button>`;
     controls.innerHTML = btns;
   }
 
   function getPageRange(current, total) {
     if (total <= 7) return Array.from({ length: total }, (_, i) => i);
-    const pages = new Set();
-    pages.add(0);
-    pages.add(total - 1);
-    for (let i = Math.max(0, current - 2); i <= Math.min(total - 1, current + 2); i++) {
-      pages.add(i);
-    }
+    const pages = new Set([0, total - 1]);
+    for (let i = Math.max(0, current - 2); i <= Math.min(total - 1, current + 2); i++) pages.add(i);
     return [...pages].sort((a, b) => a - b);
   }
 
   function buildFilters(products) {
-    const categories = [...new Set(products.map(p =>
-      (p.category || p.categoryName || '').toLowerCase()
-    ).filter(Boolean))];
-
-    const controls = document.getElementById('filterControls');
-    controls.innerHTML = `
+    const categories = [...new Set(products.map(p => (p.category || p.categoryName || '').toLowerCase()).filter(Boolean))];
+    document.getElementById('filterControls').innerHTML = `
       <button class="filter-btn ${currentFilter === 'all' ? 'active' : ''}" onclick="setFilter('all', this)">All</button>
-      ${categories.map(cat =>
-        `<button class="filter-btn ${currentFilter === cat ? 'active' : ''}" onclick="setFilter('${cat}', this)">${cap(cat)}</button>`
-      ).join('')}
-    `;
+      ${categories.map(cat => `<button class="filter-btn ${currentFilter === cat ? 'active' : ''}" onclick="setFilter('${cat}', this)">${cap(cat)}</button>`).join('')}`;
   }
 
   function cap(str) { return str.charAt(0).toUpperCase() + str.slice(1); }
-
   function setFilter(cat, el) {
     currentFilter = cat;
     document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
     el.classList.add('active');
     loadProducts(0);
   }
-
   function onSearch() {
     searchQuery = document.getElementById('searchInput').value;
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => loadProducts(0), 400);
   }
-
   function onPageSizeChange() {
     pageSize = parseInt(document.getElementById('pageSizeSelect').value);
     loadProducts(0);
@@ -686,68 +1210,42 @@
 
   // ── Cart ──
   let cartItemCount = 0;
-
   function updateCartBtn() {
     const btn   = document.getElementById('cartBtn');
     const count = document.getElementById('cartCount');
     count.textContent = cartItemCount;
     btn.style.display = cartItemCount > 0 ? 'flex' : 'none';
   }
-
   async function loadCartCount() {
     try {
-      const res = await fetch('/api/cart', {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
+      const res = await fetch('/api/cart', { headers: { 'Authorization': 'Bearer ' + token } });
       if (!res.ok) return;
       const items = await res.json();
       cartItemCount = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
       updateCartBtn();
-    } catch (err) {
-      console.warn('Could not load cart count:', err);
-    }
+    } catch (err) { console.warn('Could not load cart count:', err); }
   }
-
   async function addToCart(productId, name, btnEl) {
     const originalText = btnEl.innerHTML;
-    btnEl.disabled = true;
-    btnEl.innerHTML = '⏳ Adding...';
-
+    btnEl.disabled = true; btnEl.innerHTML = '⏳ Adding...';
     try {
       const res = await fetch('/api/cart/add', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + token
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
         body: JSON.stringify({ productId, quantity: 1 })
       });
-
       if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return; }
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || 'Failed to add to cart');
-      }
-
+      if (!res.ok) { const e = await res.json().catch(()=>{}); throw new Error(e.message || 'Failed to add to cart'); }
       cartItemCount++;
       updateCartBtn();
-      btnEl.innerHTML = '✓ Added';
-      btnEl.style.background = '#1a7a4a';
+      btnEl.innerHTML = '✓ Added'; btnEl.style.background = '#1a7a4a';
       showToast(`✓ ${name} added to cart`);
-
-      setTimeout(() => {
-        btnEl.disabled = false;
-        btnEl.innerHTML = originalText;
-        btnEl.style.background = '';
-      }, 2000);
-
+      setTimeout(() => { btnEl.disabled = false; btnEl.innerHTML = originalText; btnEl.style.background = ''; }, 2000);
     } catch (err) {
-      btnEl.disabled = false;
-      btnEl.innerHTML = originalText;
+      btnEl.disabled = false; btnEl.innerHTML = originalText;
       showToast('❌ ' + (err.message || 'Could not add to cart'), true);
     }
   }
-
   function goToCart() { window.location.href = 'cart.html'; }
 
   function showToast(msg, isError = false) {
@@ -763,6 +1261,8 @@
   // ── Init ──
   loadProducts(0);
   loadCartCount();
+  // Pre-load account data for avatar in navbar
+  loadAccountData();
 </script>
 </body>
 </html>

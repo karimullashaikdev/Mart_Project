@@ -4,6 +4,7 @@ import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -27,6 +28,10 @@ import com.karim.util.JwtUtil;
 
 @Service
 public class AuthServiceImpl implements AuthService {
+	
+	
+	@Value("${app.base-url}")
+	private String baseUrl;
 
 	private final UserRepository userRepo;
 	private final PasswordEncoder passwordEncoder;
@@ -183,14 +188,18 @@ public class AuthServiceImpl implements AuthService {
 	    otpEntity.setMaxAttempts(3);
 
 	    otpRepo.save(otpEntity);
+	    
+	    String subject = "Welcome to Our App 🎉 - Verify Your Account";
+
+	    String body = htmlBody(otp, user.getFullName());
 
 	    // ✅ 4. Send Email
 	    notificationService.sendEmail(
 	            user.getId(),
 	            EmailType.WELCOME,
 	            user.getEmail(),
-	            "Your OTP Code",
-	            "Your OTP is: " + otp,
+	            subject,
+	            body,
 	            otpEntity.getReferenceId()
 	    );
 
@@ -319,5 +328,40 @@ public class AuthServiceImpl implements AuthService {
 			otpRepo.save(otpEntity);
 			throw new RuntimeException("Invalid OTP");
 		}
+	}
+	
+	private String htmlBody(String otp,String fullname) {
+		 String activationLink = baseUrl + "/activate.html";
+		String htmlBody = "<html>" +
+		        "<body style='font-family: Arial, sans-serif; line-height:1.6;'>" +
+		        "<h2 style='color:#2E86C1;'>Welcome to Our App 🎉</h2>" +
+
+		        "<p>Dear <b>" + fullname + "</b>,</p>" +
+
+		        "<p>Thank you for registering with us. We are excited to have you on board!</p>" +
+
+		        "<p>To complete your registration and activate your account, please use the OTP below:</p>" +
+
+		        "<h1 style='color:#28A745;'>" + otp + "</h1>" +
+
+		        "<p><b>Important:</b></p>" +
+		        "<ul>" +
+		        "<li>This OTP is valid for 5 minutes only.</li>" +
+		        "<li>You must verify your account before accessing features like ordering products.</li>" +
+		        "<li>Inactive accounts cannot place orders.</li>" +
+		        "</ul>" +
+
+		        "<p>Please click below to activate your account:</p>" +
+
+		        "<p>" +
+		        "<a href='" + activationLink + "' style='background-color:#2E86C1;color:white;padding:10px 15px;text-decoration:none;border-radius:5px;'>Activate Account</a>" +
+		        "</p>" +
+
+		        "<br/>" +
+		        "<p>Regards,<br/><b>Your App Team</b></p>" +
+		        "</body>" +
+		        "</html>";
+		
+		return htmlBody;
 	}
 }
