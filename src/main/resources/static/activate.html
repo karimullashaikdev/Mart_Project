@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Activate Account — Karim</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d0f; --surface: #161619; --border: #2a2a30;
+    --accent: #c8a96e; --accent-dim: rgba(200,169,110,0.12);
+    --text: #e8e6e0; --muted: #6b6b70;
+    --error: #e06c6c; --success: #52b788; --success-dim: rgba(82,183,136,0.12);
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg); color: var(--text);
+    min-height: 100vh; min-height: 100dvh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px; overflow-x: hidden;
+  }
+
+  body::before, body::after {
+    content: ''; position: fixed; border-radius: 50%;
+    filter: blur(80px); pointer-events: none; z-index: 0;
+  }
+  body::before {
+    width: 500px; height: 500px;
+    background: radial-gradient(circle, rgba(200,169,110,0.08) 0%, transparent 70%);
+    top: -100px; right: -100px; animation: drift 12s ease-in-out infinite alternate;
+  }
+  body::after {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(82,183,136,0.05) 0%, transparent 70%);
+    bottom: -80px; left: -80px; animation: drift 15s ease-in-out infinite alternate-reverse;
+  }
+  @keyframes drift { from { transform: translate(0,0); } to { transform: translate(40px,30px); } }
+
+  .card {
+    position: relative; z-index: 1;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 20px; width: 100%; max-width: 420px;
+    padding: 48px 40px; animation: fadeUp 0.6s ease both;
+    box-shadow: 0 40px 80px rgba(0,0,0,0.5);
+  }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+
+  .logo { display: flex; align-items: center; gap: 10px; margin-bottom: 32px; }
+  .logo-icon { width: 36px; height: 36px; background: var(--accent); border-radius: 10px; display: grid; place-items: center; font-size: 16px; flex-shrink: 0; }
+  .logo-text { font-family: 'DM Serif Display', serif; font-size: 20px; letter-spacing: -0.5px; }
+
+  .icon-wrap {
+    width: 52px; height: 52px;
+    background: var(--accent-dim); border: 1px solid rgba(200,169,110,0.25);
+    border-radius: 14px; display: grid; place-items: center; margin-bottom: 18px;
+    transition: background 0.3s, border-color 0.3s;
+  }
+  .icon-wrap.resend-mode {
+    background: rgba(82,183,136,0.1); border-color: rgba(82,183,136,0.25);
+  }
+  .icon-wrap svg { color: var(--accent); transition: color 0.3s; }
+  .icon-wrap.resend-mode svg { color: var(--success); }
+
+  h1 { font-family: 'DM Serif Display', serif; font-size: 26px; font-weight: 400; line-height: 1.2; margin-bottom: 6px; }
+  h1 em { color: var(--accent); font-style: italic; }
+  h1 em.green { color: var(--success); }
+  .subtitle { color: var(--muted); font-size: 14px; margin-bottom: 24px; font-weight: 300; line-height: 1.6; }
+
+  .info-note {
+    background: var(--accent-dim); border: 1px solid rgba(200,169,110,0.2);
+    border-radius: 8px; padding: 10px 14px; font-size: 12.5px;
+    color: rgba(200,169,110,0.9); margin-bottom: 20px; line-height: 1.5;
+  }
+
+  .field { margin-bottom: 18px; }
+  label { display: block; font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 8px; }
+
+  input {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 10px; padding: 13px 16px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 15px;
+    transition: border-color 0.2s, box-shadow 0.2s; outline: none; -webkit-appearance: none;
+  }
+  input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+  input::placeholder { color: var(--muted); }
+
+  /* OTP boxes */
+  .otp-group { display: flex; gap: 8px; justify-content: space-between; }
+  .otp-box {
+    flex: 1; min-width: 0; height: 56px; text-align: center;
+    font-size: 22px; font-weight: 500;
+    border-radius: 10px; background: var(--bg); border: 1px solid var(--border);
+    color: var(--text); outline: none; padding: 0;
+    transition: border-color 0.2s, box-shadow 0.2s, transform 0.1s;
+    caret-color: var(--accent); -webkit-appearance: none;
+  }
+  .otp-box:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); transform: translateY(-1px); }
+  .otp-box.filled { border-color: rgba(200,169,110,0.4); color: var(--accent); }
+
+  /* Panels */
+  .verify-panel, .resend-panel { width: 100%; }
+  .resend-panel { display: none; }
+  .resend-panel.show { display: block; animation: slideIn 0.3s ease both; }
+  @keyframes slideIn { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:translateX(0); } }
+
+  .btn {
+    width: 100%; padding: 14px; background: var(--accent); color: #0d0d0f;
+    border: none; border-radius: 10px; font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 500; cursor: pointer;
+    transition: opacity 0.2s, transform 0.15s; margin-top: 8px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn:active { transform: translateY(0); }
+  .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+  .btn.secondary {
+    background: transparent; color: var(--accent);
+    border: 1px solid rgba(200,169,110,0.35); margin-top: 10px;
+  }
+  .btn.secondary:hover { background: var(--accent-dim); }
+  .btn .spinner {
+    display: none; width: 16px; height: 16px;
+    border: 2px solid rgba(0,0,0,0.3); border-top-color: #0d0d0f;
+    border-radius: 50%; animation: spin 0.7s linear infinite; margin: 0 auto;
+  }
+  .btn.secondary .spinner { border-color: rgba(200,169,110,0.3); border-top-color: var(--accent); }
+  .btn.loading .btn-text { display: none; }
+  .btn.loading .spinner { display: block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .error-msg {
+    background: rgba(224,108,108,0.1); border: 1px solid rgba(224,108,108,0.25);
+    border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--error);
+    margin-top: 16px; display: none;
+  }
+  .error-msg.show { display: block; }
+  .success-msg {
+    background: var(--success-dim); border: 1px solid rgba(82,183,136,0.25);
+    border-radius: 8px; padding: 12px 14px; font-size: 13px; color: var(--success);
+    margin-top: 16px; display: none; text-align: center; line-height: 1.6;
+  }
+  .success-msg.show { display: block; }
+
+  /* Bottom row for resend trigger */
+  .bottom-row {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-top: 20px; flex-wrap: wrap; gap: 6px;
+  }
+  .bottom-row span { font-size: 13px; color: var(--muted); }
+  .resend-trigger {
+    background: none; border: none; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 500; color: var(--accent);
+    cursor: pointer; padding: 0; transition: opacity 0.2s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .resend-trigger:hover { opacity: 0.8; text-decoration: underline; }
+  .resend-trigger:disabled { color: var(--muted); cursor: not-allowed; opacity: 1; }
+  .timer { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+  .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
+  .footer-link { text-align: center; font-size: 13px; color: var(--muted); }
+  .footer-link a { color: var(--accent); text-decoration: none; font-weight: 500; }
+  .footer-link a:hover { text-decoration: underline; }
+
+  @media (max-width: 480px) {
+    body { align-items: flex-start; padding-top: 24px; }
+    .card { padding: 32px 20px; border-radius: 16px; }
+    h1 { font-size: 22px; }
+    .subtitle { margin-bottom: 20px; }
+    .otp-box { height: 48px; font-size: 18px; }
+    .otp-group { gap: 6px; }
+  }
+  @media (max-width: 360px) {
+    .card { padding: 24px 16px; }
+    h1 { font-size: 20px; }
+    input { font-size: 16px; }
+    .otp-box { height: 44px; font-size: 16px; }
+    .otp-group { gap: 5px; }
+  }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">
+    <div class="logo-icon">✦</div>
+    <span class="logo-text">Karim</span>
+  </div>
+
+  <div class="icon-wrap" id="iconWrap">
+    <svg id="headerIcon" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/>
+      <polyline points="22,6 12,13 2,6"/>
+    </svg>
+  </div>
+
+  <h1 id="pageTitle">Activate your <em>account</em></h1>
+  <p class="subtitle" id="pageSubtitle">Enter your User ID and the 6-digit OTP from your registration email.</p>
+
+  <div class="info-note" id="infoNote">
+    💡 Check your inbox for an email from Karim containing your <strong>User ID</strong> and <strong>OTP</strong>.
+  </div>
+
+  <!-- ── VERIFY PANEL (default) ── -->
+  <div class="verify-panel" id="verifyPanel">
+    <div class="field">
+      <label>User ID</label>
+      <input type="text" id="userId" placeholder="Paste your User ID from email" autocomplete="off" spellcheck="false" />
+    </div>
+
+    <div class="field">
+      <label>One-Time Password (OTP)</label>
+      <div class="otp-group" id="otpGroup">
+        <input class="otp-box" maxlength="1" inputmode="numeric" type="text" />
+        <input class="otp-box" maxlength="1" inputmode="numeric" type="text" />
+        <input class="otp-box" maxlength="1" inputmode="numeric" type="text" />
+        <input class="otp-box" maxlength="1" inputmode="numeric" type="text" />
+        <input class="otp-box" maxlength="1" inputmode="numeric" type="text" />
+        <input class="otp-box" maxlength="1" inputmode="numeric" type="text" />
+      </div>
+    </div>
+
+    <button class="btn" id="verifyBtn" onclick="handleVerify()">
+      <span class="btn-text">Activate Account</span>
+      <div class="spinner"></div>
+    </button>
+
+    <div class="error-msg"  id="verifyError"></div>
+    <div class="success-msg" id="verifySuccess"></div>
+
+    <!-- Resend trigger row -->
+    <div class="bottom-row">
+      <span>Didn't receive the OTP?</span>
+      <span>
+        <button class="resend-trigger" id="resendTrigger" onclick="showResendPanel()" disabled>Resend OTP</button>
+        <span class="timer" id="timer"></span>
+      </span>
+    </div>
+  </div>
+
+  <!-- ── RESEND PANEL (shown when user clicks Resend OTP) ── -->
+  <div class="resend-panel" id="resendPanel">
+    <div class="field">
+      <label>Registered Email</label>
+      <input type="email" id="resendEmail" placeholder="Enter your registered email" autocomplete="email" />
+    </div>
+
+    <button class="btn" id="resendBtn" onclick="handleResend()">
+      <span class="btn-text">Send New OTP</span>
+      <div class="spinner"></div>
+    </button>
+
+    <button class="btn secondary" onclick="showVerifyPanel()">
+      <span class="btn-text">← Back to Activate</span>
+      <div class="spinner"></div>
+    </button>
+
+    <div class="error-msg"  id="resendError"></div>
+    <div class="success-msg" id="resendSuccess"></div>
+  </div>
+
+  <hr class="divider" />
+  <p class="footer-link"><a href="login.html">← Back to Sign In</a></p>
+</div>
+
+<script>
+  // ── Pre-fill from query params ─────────────────────────────────────────────
+  (function() {
+    const p = new URLSearchParams(window.location.search);
+    const uid   = p.get('userId');
+    const email = p.get('email');
+    if (uid)   document.getElementById('userId').value     = uid;
+    if (email) document.getElementById('resendEmail').value = decodeURIComponent(email);
+  })();
+
+  // ── OTP box keyboard / paste logic ────────────────────────────────────────
+  const otpBoxes = Array.from(document.querySelectorAll('.otp-box'));
+
+  otpBoxes.forEach((box, idx) => {
+    box.addEventListener('input', e => {
+      const val = e.target.value.replace(/\D/g, '');
+      e.target.value = val ? val[0] : '';
+      box.classList.toggle('filled', !!val);
+      if (val && idx < 5) otpBoxes[idx + 1].focus();
+    });
+    box.addEventListener('keydown', e => {
+      if (e.key === 'Backspace') {
+        if (!box.value && idx > 0) { otpBoxes[idx-1].value = ''; otpBoxes[idx-1].classList.remove('filled'); otpBoxes[idx-1].focus(); }
+        else { box.value = ''; box.classList.remove('filled'); }
+      }
+      if (e.key === 'ArrowLeft'  && idx > 0) otpBoxes[idx-1].focus();
+      if (e.key === 'ArrowRight' && idx < 5) otpBoxes[idx+1].focus();
+      if (e.key === 'Enter') handleVerify();
+    });
+    box.addEventListener('paste', e => {
+      e.preventDefault();
+      const pasted = (e.clipboardData || window.clipboardData).getData('text').replace(/\D/g,'').slice(0,6);
+      pasted.split('').forEach((ch, i) => { if (otpBoxes[i]) { otpBoxes[i].value = ch; otpBoxes[i].classList.add('filled'); } });
+      otpBoxes[Math.min(pasted.length, 5)].focus();
+    });
+  });
+
+  function getOtp()   { return otpBoxes.map(b => b.value).join(''); }
+  function clearOtp() { otpBoxes.forEach(b => { b.value=''; b.classList.remove('filled'); }); otpBoxes[0].focus(); }
+
+  // ── Countdown timer ───────────────────────────────────────────────────────
+  let countdown = null;
+
+  function startTimer(seconds = 60) {
+    const trigger = document.getElementById('resendTrigger');
+    const timerEl = document.getElementById('timer');
+    trigger.disabled = true;
+    if (countdown) clearInterval(countdown);
+    let rem = seconds;
+    timerEl.textContent = `(${rem}s)`;
+    countdown = setInterval(() => {
+      rem--;
+      if (rem <= 0) { clearInterval(countdown); timerEl.textContent = ''; trigger.disabled = false; }
+      else timerEl.textContent = `(${rem}s)`;
+    }, 1000);
+  }
+
+  startTimer(60);
+
+  // ── Panel switching ───────────────────────────────────────────────────────
+  function showResendPanel() {
+    document.getElementById('verifyPanel').style.display  = 'none';
+    document.getElementById('resendPanel').classList.add('show');
+    document.getElementById('infoNote').style.display     = 'none';
+    // Update header
+    document.getElementById('iconWrap').classList.add('resend-mode');
+    document.getElementById('headerIcon').innerHTML = '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>';
+    document.getElementById('pageTitle').innerHTML    = 'Resend <em class="green">OTP</em>';
+    document.getElementById('pageSubtitle').textContent = 'Enter your registered email and we\'ll send a fresh OTP.';
+    // Focus email
+    setTimeout(() => document.getElementById('resendEmail').focus(), 100);
+  }
+
+  function showVerifyPanel() {
+    document.getElementById('resendPanel').classList.remove('show');
+    document.getElementById('verifyPanel').style.display  = '';
+    document.getElementById('infoNote').style.display     = '';
+    // Reset header
+    document.getElementById('iconWrap').classList.remove('resend-mode');
+    document.getElementById('headerIcon').innerHTML = '<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>';
+    document.getElementById('pageTitle').innerHTML    = 'Activate your <em>account</em>';
+    document.getElementById('pageSubtitle').textContent = 'Enter your User ID and the 6-digit OTP from your registration email.';
+    clearMsgs();
+  }
+
+  // ── Verify OTP ────────────────────────────────────────────────────────────
+  async function handleVerify() {
+    const userId = document.getElementById('userId').value.trim();
+    const otp    = getOtp();
+    const btn    = document.getElementById('verifyBtn');
+    clearMsgs();
+
+    if (!userId) { showMsg('verifyError', 'Please enter your User ID.'); return; }
+    if (otp.length !== 6 || !/^\d{6}$/.test(otp)) { showMsg('verifyError', 'Please enter the complete 6-digit OTP.'); return; }
+
+    btn.classList.add('loading'); btn.disabled = true;
+    try {
+      const res = await fetch('/api/auth/otp/email/verify', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, otp })
+      });
+      const rawText = await res.text();
+      if (!res.ok) {
+        let msg = `Server returned ${res.status}`;
+        try { const e = JSON.parse(rawText); msg = e.message || e.error || JSON.stringify(e); } catch { if (rawText) msg = rawText; }
+        throw new Error(msg);
+      }
+      document.getElementById('verifySuccess').innerHTML = '✓ Account activated!<br><span style="opacity:0.8;font-size:12px;">Redirecting to login…</span>';
+      document.getElementById('verifySuccess').classList.add('show');
+      setTimeout(() => { window.location.href = 'login.html'; }, 1800);
+    } catch (err) {
+      showMsg('verifyError', err.message || 'Verification failed. Please try again.');
+      clearOtp();
+    } finally { btn.classList.remove('loading'); btn.disabled = false; }
+  }
+
+  // ── Resend OTP ────────────────────────────────────────────────────────────
+  async function handleResend() {
+    const email = document.getElementById('resendEmail').value.trim();
+    const btn   = document.getElementById('resendBtn');
+    document.getElementById('resendError').classList.remove('show');
+    document.getElementById('resendSuccess').classList.remove('show');
+
+    if (!email) { showMsg('resendError', 'Please enter your registered email.'); return; }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { showMsg('resendError', 'Please enter a valid email address.'); return; }
+
+    btn.classList.add('loading'); btn.disabled = true;
+    try {
+      const res = await fetch('/api/auth/otp/email/send', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email })
+      });
+      const rawText = await res.text();
+      if (!res.ok) {
+        let msg = `Server returned ${res.status}`;
+        try { const e = JSON.parse(rawText); msg = e.message || e.error || JSON.stringify(e); } catch { if (rawText) msg = rawText; }
+        throw new Error(msg);
+      }
+      document.getElementById('resendSuccess').textContent = '✓ New OTP sent! Check your inbox.';
+      document.getElementById('resendSuccess').classList.add('show');
+      startTimer(60);
+      // Go back to verify panel after short delay
+      setTimeout(() => { showVerifyPanel(); clearOtp(); }, 2000);
+    } catch (err) {
+      showMsg('resendError', err.message || 'Failed to send OTP. Try again.');
+    } finally { btn.classList.remove('loading'); btn.disabled = false; }
+  }
+
+  function showMsg(id, msg) { const el = document.getElementById(id); el.textContent = msg; el.classList.add('show'); }
+  function clearMsgs() {
+    ['verifyError','verifySuccess','resendError','resendSuccess'].forEach(id => document.getElementById(id).classList.remove('show'));
+  }
+</script>
+</body>
+</html>

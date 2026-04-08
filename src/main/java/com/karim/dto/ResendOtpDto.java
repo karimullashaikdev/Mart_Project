@@ -1,10 +1,12 @@
 package com.karim.dto;
 
-import java.util.UUID;
-
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
 public class ResendOtpDto {
-	private UUID userId;
+	@NotBlank
+	@Email(message = "Valid email is required")
+	private String email;
 }

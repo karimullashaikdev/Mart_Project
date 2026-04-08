@@ -3,8 +3,10 @@ package com.karim.entity;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 import com.karim.enums.AddressLabel;
 
@@ -26,13 +28,14 @@ import lombok.Data;
 @Entity
 @Table(name = "addresses")
 @Data
-@SQLDelete(sql = "UPDATE addresses SET is_deleted = true WHERE id = ?")
+//@SQLDelete(sql = "UPDATE addresses SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
 
 public class Address {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	@Column(columnDefinition = "CHAR(36)")
 	private UUID id;
 

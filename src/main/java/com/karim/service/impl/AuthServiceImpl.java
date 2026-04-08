@@ -47,35 +47,36 @@ public class AuthServiceImpl implements AuthService {
 		this.authenticationManager = authenticationManager;
 	}
 
-	// -------------------------
-	// REGISTER
-	// -------------------------
 	@Override
 	@Transactional
 	public User register(RegisterDto dto) {
 
-		if (userRepo.existsByEmail(dto.getEmail())) {
-			throw new RuntimeException("Email already exists");
-		}
-		if (userRepo.existsByPhone(dto.getPhone())) {
-			throw new RuntimeException("Phone already exists");
-		}
+	    if (userRepo.existsByEmail(dto.getEmail())) {
+	        throw new RuntimeException("Email already exists");
+	    }
 
-		User user = new User();
-		user.setFullName(dto.getFullName());
-		user.setEmail(dto.getEmail());
-		user.setPhone(dto.getPhone());
-		user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
-		user.setRole(dto.getRole() != null ? dto.getRole() : Role.USER);
-		user.setIsActive(false); // inactive until email verified
-		user.setCreatedAt(LocalDateTime.now());
+	    if (userRepo.existsByPhone(dto.getPhone())) {
+	        throw new RuntimeException("Phone already exists");
+	    }
 
-		User savedUser = userRepo.save(user);
+	    User user = new User();
+	    user.setFullName(dto.getFullName());
+	    user.setEmail(dto.getEmail());
+	    user.setPhone(dto.getPhone());
+	    user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
+	    user.setRole(dto.getRole() != null ? dto.getRole() : Role.USER);
+	    user.setIsActive(false);
+	    user.setCreatedAt(LocalDateTime.now());
 
-		// use proxy to keep @Transactional on inner method
-		sendEmailVerificationOtp(savedUser.getId());
+	    User savedUser = userRepo.save(user);
 
-		return savedUser;
+	    // ✅ set audit
+	    savedUser.setCreatedBy(savedUser.getId());
+
+	    // ✅ send OTP using EMAIL (updated flow)
+	    sendEmailVerificationOtp(savedUser.getEmail());
+
+	    return savedUser;
 	}
 
 	// -------------------------
@@ -162,28 +163,42 @@ public class AuthServiceImpl implements AuthService {
 
 	@Override
 	@Transactional
-	public OtpResponseDto sendEmailVerificationOtp(UUID userId) {
+	public OtpResponseDto sendEmailVerificationOtp(String email) {
 
-		User user = userRepo.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+	    // ✅ 1. Find user by email
+	    User user = userRepo.findByEmail(email)
+	            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-		String otp = String.format("%06d", random.nextInt(1_000_000));
-		String otpHash = passwordEncoder.encode(otp);
+	    // ✅ 2. Generate OTP
+	    String otp = String.format("%06d", random.nextInt(1_000_000));
+	    String otpHash = passwordEncoder.encode(otp);
 
-		Otp otpEntity = new Otp();
-		otpEntity.setUserId(userId);
-		otpEntity.setReferenceId(UUID.randomUUID().toString());
-		otpEntity.setPurpose(OtpPurpose.REGISTRATION);
-		otpEntity.setOtpHash(otpHash);
-		otpEntity.setExpiresAt(LocalDateTime.now().plusMinutes(5));
-		otpEntity.setMaxAttempts(3);
-		otpRepo.save(otpEntity);
+	    // ✅ 3. Save OTP
+	    Otp otpEntity = new Otp();
+	    otpEntity.setUserId(user.getId());
+	    otpEntity.setReferenceId(UUID.randomUUID().toString());
+	    otpEntity.setPurpose(OtpPurpose.REGISTRATION);
+	    otpEntity.setOtpHash(otpHash);
+	    otpEntity.setExpiresAt(LocalDateTime.now().plusMinutes(5));
+	    otpEntity.setMaxAttempts(3);
 
-		// Updated to use EmailType enum
-		notificationService.sendEmail(userId, EmailType.WELCOME, // <-- Use enum instead of string
-				user.getEmail(), "Your OTP Code", "Your OTP is: " + otp, otpEntity.getReferenceId());
+	    otpRepo.save(otpEntity);
 
-		return OtpResponseDto.builder().message("OTP sent successfully").referenceId(otpEntity.getReferenceId())
-				.build();
+	    // ✅ 4. Send Email
+	    notificationService.sendEmail(
+	            user.getId(),
+	            EmailType.WELCOME,
+	            user.getEmail(),
+	            "Your OTP Code",
+	            "Your OTP is: " + otp,
+	            otpEntity.getReferenceId()
+	    );
+
+	    // ✅ 5. Response
+	    return OtpResponseDto.builder()
+	            .message("OTP sent successfully")
+	            .referenceId(otpEntity.getReferenceId())
+	            .build();
 	}
 
 	// -------------------------

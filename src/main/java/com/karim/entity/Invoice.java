@@ -3,8 +3,10 @@ package com.karim.entity;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 import com.karim.enums.InvoiceStatus;
 
@@ -41,6 +43,7 @@ public class Invoice {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	@Column(name = "id", updatable = false, nullable = false)
 	private UUID id;
 

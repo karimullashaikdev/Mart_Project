@@ -41,22 +41,30 @@ public class CustomUserDetailsService implements UserDetailsService {
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        // 1. Fetch user from database
+
         User user = userRepository.findByEmail(username)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with email: " + username));
 
-        // 2. Return a Spring Security 'UserDetails' object
-        return new org.springframework.security.core.userdetails.User(
+        return new UserPrincipal(
+                user.getId(),
                 user.getEmail(),
                 user.getPasswordHash(),
-                // Maps your roles/permissions to GrantedAuthority
-                Collections.emptyList() 
+                Collections.emptyList(), // later we add roles
+                user.getIsActive()
         );
     }
     
-    // ✅ Custom method to load by UUID
     public UserDetails loadUserById(UUID userId) {
-        return (UserDetails) userRepository.findById(userId)
+
+        User user = userRepository.findById(userId)
                 .orElseThrow(() -> new UsernameNotFoundException("User not found with ID: " + userId));
+
+        return new UserPrincipal(
+                user.getId(),
+                user.getEmail(),
+                user.getPasswordHash(),
+                Collections.emptyList(),
+                user.getIsActive()
+        );
     }
 }

@@ -6,6 +6,7 @@ import java.util.UUID;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -42,14 +43,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
-    private final ObjectMapper objectMapper;
 
     public JwtAuthFilter(JwtUtil jwtUtil,
-                         CustomUserDetailsService userDetailsService,
-                         ObjectMapper objectMapper) {
+                         CustomUserDetailsService userDetailsService) {
         this.jwtUtil = jwtUtil;
         this.userDetailsService = userDetailsService;
-        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -60,74 +58,56 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         final String authHeader = request.getHeader("Authorization");
 
-        // 1. No Authorization header — skip, let SecurityConfig decide
+        // ✅ 1. No token → continue (public APIs will work)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        final String token = authHeader.substring(7); // strip "Bearer "
+        final String token = authHeader.substring(7);
 
         try {
-            // 2. Must be an access token (not a refresh token)
+            // ✅ 2. Validate token
             if (!jwtUtil.isTokenValid(token, "access")) {
-                sendError(response, HttpStatus.UNAUTHORIZED, "Invalid or expired access token");
-                return;
+                throw new BadCredentialsException("Invalid or expired access token");
             }
 
-            // 3. Only set auth if not already set (avoid re-processing)
+            // ✅ 3. Set authentication only if not already set
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
 
                 UUID userId = jwtUtil.extractUserId(token);
                 UserDetails userDetails = userDetailsService.loadUserById(userId);
 
-                // 4. Check account is enabled (isActive = true)
+                // ✅ 4. Check if user is active
                 if (!userDetails.isEnabled()) {
-                    sendError(response, HttpStatus.UNAUTHORIZED,
-                            "Account is inactive. Please verify your email.");
-                    return;
+                    throw new BadCredentialsException("Account is inactive");
                 }
 
-                // 5. Build authentication object and set in context
+                // ✅ 5. Create authentication object
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails,
-                                null,                          // credentials — null after auth
+                                null,
                                 userDetails.getAuthorities()
                         );
 
                 authentication.setDetails(
-                        new WebAuthenticationDetailsSource().buildDetails(request));
+                        new WebAuthenticationDetailsSource().buildDetails(request)
+                );
 
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
 
+            // ✅ 6. Continue filter chain
             filterChain.doFilter(request, response);
 
         } catch (Exception ex) {
-            // Catches malformed tokens, UUID parse errors, DB errors etc.
-            sendError(response, HttpStatus.UNAUTHORIZED, "Token validation failed: " + ex.getMessage());
+
+            // ✅ VERY IMPORTANT
+            SecurityContextHolder.clearContext();
+
+            // ✅ Let Spring Security handle response
+            throw new BadCredentialsException("JWT Error: " + ex.getMessage(), ex);
         }
-    }
-
-    // ----------------------------------------------------------------
-    // Write a clean JSON error — consistent with your ApiResponse shape
-    // { "success": false, "error": "...", "statusCode": 401 }
-    // ----------------------------------------------------------------
-    private void sendError(HttpServletResponse response,
-                           HttpStatus status,
-                           String message) throws IOException {
-
-        response.setStatus(status.value());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-
-        String body = objectMapper.writeValueAsString(
-                java.util.Map.of(
-                        "success", false,
-                        "error", message,
-                        "statusCode", status.value()
-                ));
-
-        response.getWriter().write(body);
     }
 }

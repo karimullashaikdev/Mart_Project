@@ -123,16 +123,22 @@ public class AuthController {
 	// ----------------------------------------------------------------
 	// POST /api/auth/otp/email/send — JWT required
 	// ----------------------------------------------------------------
-	@Operation(summary = "Resend email verification OTP", description = "Sends a fresh 6-digit OTP to the logged-in user's email.")
+	@Operation(
+	    summary = "Resend email verification OTP",
+	    description = "Sends a fresh 6-digit OTP to the given email."
+	)
 	@PostMapping("/otp/email/send")
-	public ResponseEntity<Map<String, Object>> sendEmailOtp(/* @AuthenticationPrincipal UserDetails currentUser */
-			@Valid @RequestBody ResendOtpDto dto) {
+	public ResponseEntity<Map<String, Object>> sendEmailOtp(
+	        @Valid @RequestBody ResendOtpDto dto) {
 
-		/* UUID userId = resolveUserId(currentUser); */
-		OtpResponseDto result = authService.sendEmailVerificationOtp(dto.getUserId());
+	    OtpResponseDto result =
+	            authService.sendEmailVerificationOtp(dto.getEmail());
 
-		return ResponseEntity.ok(Map.of("success", true, "message", result.getMessage(), "data",
-				Map.of("referenceId", result.getReferenceId())));
+	    return ResponseEntity.ok(Map.of(
+	            "success", true,
+	            "message", result.getMessage(),
+	            "data", Map.of("referenceId", result.getReferenceId())
+	    ));
 	}
 
 	// ----------------------------------------------------------------

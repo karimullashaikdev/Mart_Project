@@ -11,7 +11,7 @@ public interface AuthService {
 	
 	User register(RegisterDto dto);
 
-	OtpResponseDto sendEmailVerificationOtp(UUID userId);
+	OtpResponseDto sendEmailVerificationOtp(String email);
 	
 	OtpResponseDto verifyEmailOtp(UUID userId, String otp);
 	

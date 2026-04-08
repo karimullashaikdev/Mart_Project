@@ -3,8 +3,10 @@ package com.karim.entity;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 import com.karim.enums.OrderStatus;
 
@@ -34,6 +36,7 @@ public class Order {
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
 	@Column(columnDefinition = "CHAR(36)")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID id;
 
 	@Column(name = "order_number", unique = true, nullable = false, updatable = false)

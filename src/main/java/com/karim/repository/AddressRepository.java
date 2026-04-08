@@ -13,19 +13,11 @@ import com.karim.entity.Address;
 
 public interface AddressRepository extends JpaRepository<Address, UUID> {
 
-    // ✅ Find all addresses by userId
-    @Query("""
-        SELECT a FROM Address a
-        WHERE a.user.id = :userId
-    """)
-    List<Address> findByUserId(@Param("userId") UUID userId);
+    // ✅ Get all active addresses of user
+    List<Address> findByUserIdAndIsDeletedFalse(UUID userId);
 
     // ✅ Find default address
-    @Query("""
-        SELECT a FROM Address a
-        WHERE a.user.id = :userId AND a.isDefault = true
-    """)
-    Optional<Address> findDefaultByUser(@Param("userId") UUID userId);
+    Optional<Address> findByUserIdAndIsDefaultTrueAndIsDeletedFalse(UUID userId);
 
     // ✅ Unset all default addresses
     @Modifying

@@ -18,5 +18,5 @@ public class CreateUserProfileDto {
 	private Gender gender;
 
 	// Optional if you plan to support push notifications later
-	private String fcmToken;
+//	private String fcmToken;
 }

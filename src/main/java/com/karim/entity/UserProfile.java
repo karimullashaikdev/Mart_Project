@@ -4,8 +4,10 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 import com.karim.enums.Gender;
 
@@ -33,12 +35,13 @@ public class UserProfile {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
-	@Column(columnDefinition = "CHAR(36)")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
+	@Column(length = 36)
 	private UUID id;
 
 	// 🔗 FK → USERS table
 	@OneToOne
-	@JoinColumn(name = "user_id", nullable = false)
+	@JoinColumn(name = "user_id", nullable = false, columnDefinition = "CHAR(36)")
 	private User user;
 
 	@Column(name = "avatar_url")
@@ -51,10 +54,10 @@ public class UserProfile {
 	private Gender gender;
 
 	// 🔁 Audit Fields
-	@Column(name = "created_by")
+	@Column(name = "created_by", columnDefinition = "CHAR(36)")
 	private UUID createdBy;
 
-	@Column(name = "updated_by")
+	@Column(name = "updated_by", columnDefinition = "CHAR(36)")
 	private UUID updatedBy;
 
 	@Column(name = "created_at")
@@ -70,7 +73,7 @@ public class UserProfile {
 	@Column(name = "deleted_at")
 	private LocalDateTime deletedAt;
 
-	@Column(name = "deleted_by")
+	@Column(name = "deleted_by", columnDefinition = "CHAR(36)")
 	private UUID deletedBy;
 
 	// ✅ Lifecycle Hooks
