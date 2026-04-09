@@ -28,8 +28,7 @@ import com.karim.util.JwtUtil;
 
 @Service
 public class AuthServiceImpl implements AuthService {
-	
-	
+
 	@Value("${app.base-url}")
 	private String baseUrl;
 
@@ -56,32 +55,32 @@ public class AuthServiceImpl implements AuthService {
 	@Transactional
 	public User register(RegisterDto dto) {
 
-	    if (userRepo.existsByEmail(dto.getEmail())) {
-	        throw new RuntimeException("Email already exists");
-	    }
+		if (userRepo.existsByEmail(dto.getEmail())) {
+			throw new RuntimeException("Email already exists");
+		}
 
-	    if (userRepo.existsByPhone(dto.getPhone())) {
-	        throw new RuntimeException("Phone already exists");
-	    }
+		if (userRepo.existsByPhone(dto.getPhone())) {
+			throw new RuntimeException("Phone already exists");
+		}
 
-	    User user = new User();
-	    user.setFullName(dto.getFullName());
-	    user.setEmail(dto.getEmail());
-	    user.setPhone(dto.getPhone());
-	    user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
-	    user.setRole(dto.getRole() != null ? dto.getRole() : Role.USER);
-	    user.setIsActive(false);
-	    user.setCreatedAt(LocalDateTime.now());
+		User user = new User();
+		user.setFullName(dto.getFullName());
+		user.setEmail(dto.getEmail());
+		user.setPhone(dto.getPhone());
+		user.setPasswordHash(passwordEncoder.encode(dto.getPassword()));
+		user.setRole(dto.getRole() != null ? dto.getRole() : Role.USER);
+		user.setIsActive(false);
+		user.setCreatedAt(LocalDateTime.now());
 
-	    User savedUser = userRepo.save(user);
+		User savedUser = userRepo.save(user);
 
-	    // ✅ set audit
-	    savedUser.setCreatedBy(savedUser.getId());
+		// ✅ set audit
+		savedUser.setCreatedBy(savedUser.getId());
 
-	    // ✅ send OTP using EMAIL (updated flow)
-	    sendEmailVerificationOtp(savedUser.getEmail());
+		// ✅ send OTP using EMAIL (updated flow)
+		sendEmailVerificationOtp(savedUser.getEmail());
 
-	    return savedUser;
+		return savedUser;
 	}
 
 	// -------------------------
@@ -170,44 +169,35 @@ public class AuthServiceImpl implements AuthService {
 	@Transactional
 	public OtpResponseDto sendEmailVerificationOtp(String email) {
 
-	    // ✅ 1. Find user by email
-	    User user = userRepo.findByEmail(email)
-	            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+		// ✅ 1. Find user by email
+		User user = userRepo.findByEmail(email).orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-	    // ✅ 2. Generate OTP
-	    String otp = String.format("%06d", random.nextInt(1_000_000));
-	    String otpHash = passwordEncoder.encode(otp);
+		// ✅ 2. Generate OTP
+		String otp = String.format("%06d", random.nextInt(1_000_000));
+		String otpHash = passwordEncoder.encode(otp);
 
-	    // ✅ 3. Save OTP
-	    Otp otpEntity = new Otp();
-	    otpEntity.setUserId(user.getId());
-	    otpEntity.setReferenceId(UUID.randomUUID().toString());
-	    otpEntity.setPurpose(OtpPurpose.REGISTRATION);
-	    otpEntity.setOtpHash(otpHash);
-	    otpEntity.setExpiresAt(LocalDateTime.now().plusMinutes(5));
-	    otpEntity.setMaxAttempts(3);
+		// ✅ 3. Save OTP
+		Otp otpEntity = new Otp();
+		otpEntity.setUserId(user.getId());
+		otpEntity.setReferenceId(UUID.randomUUID().toString());
+		otpEntity.setPurpose(OtpPurpose.REGISTRATION);
+		otpEntity.setOtpHash(otpHash);
+		otpEntity.setExpiresAt(LocalDateTime.now().plusMinutes(5));
+		otpEntity.setMaxAttempts(3);
 
-	    otpRepo.save(otpEntity);
-	    
-	    String subject = "Welcome to Our App 🎉 - Verify Your Account";
+		otpRepo.save(otpEntity);
 
-	    String body = htmlBody(otp, user.getFullName());
+		String subject = "Welcome to Our App 🎉 - Verify Your Account";
 
-	    // ✅ 4. Send Email
-	    notificationService.sendEmail(
-	            user.getId(),
-	            EmailType.WELCOME,
-	            user.getEmail(),
-	            subject,
-	            body,
-	            otpEntity.getReferenceId()
-	    );
+		String body = htmlBody(otp, user.getFullName(), user.getId());
 
-	    // ✅ 5. Response
-	    return OtpResponseDto.builder()
-	            .message("OTP sent successfully")
-	            .referenceId(otpEntity.getReferenceId())
-	            .build();
+		// ✅ 4. Send Email
+		notificationService.sendEmail(user.getId(), EmailType.WELCOME, user.getEmail(), subject, body,
+				otpEntity.getReferenceId());
+
+		// ✅ 5. Response
+		return OtpResponseDto.builder().message("OTP sent successfully").referenceId(otpEntity.getReferenceId())
+				.build();
 	}
 
 	// -------------------------
@@ -329,39 +319,32 @@ public class AuthServiceImpl implements AuthService {
 			throw new RuntimeException("Invalid OTP");
 		}
 	}
-	
-	private String htmlBody(String otp,String fullname) {
-		 String activationLink = baseUrl + "/activate.html";
-		String htmlBody = "<html>" +
-		        "<body style='font-family: Arial, sans-serif; line-height:1.6;'>" +
-		        "<h2 style='color:#2E86C1;'>Welcome to Our App 🎉</h2>" +
 
-		        "<p>Dear <b>" + fullname + "</b>,</p>" +
+	private String htmlBody(String otp, String fullname, UUID userId) {
+		String activationLink = baseUrl + "/activate.html";
+		String htmlBody = "<html>" + "<body style='font-family: Arial, sans-serif; line-height:1.6;'>"
+				+ "<h2 style='color:#2E86C1;'>Welcome to Our App 🎉</h2>" +
 
-		        "<p>Thank you for registering with us. We are excited to have you on board!</p>" +
+				"<p>Dear <b>" + fullname + "</b>,</p>" +
 
-		        "<p>To complete your registration and activate your account, please use the OTP below:</p>" +
+				"<p>Thank you for registering with us. We are excited to have you on board!</p>" +
 
-		        "<h1 style='color:#28A745;'>" + otp + "</h1>" +
+				"<p>To complete your registration and activate your account, please use the UserId, OTP below:</p>" +
 
-		        "<p><b>Important:</b></p>" +
-		        "<ul>" +
-		        "<li>This OTP is valid for 5 minutes only.</li>" +
-		        "<li>You must verify your account before accessing features like ordering products.</li>" +
-		        "<li>Inactive accounts cannot place orders.</li>" +
-		        "</ul>" +
+				"<h1 style='color:#28A745;'>" + userId + "</h1>" + "<h1 style='color:#28A745;'>" + otp + "</h1>" +
 
-		        "<p>Please click below to activate your account:</p>" +
+				"<p><b>Important:</b></p>" + "<ul>" + "<li>This OTP is valid for 5 minutes only.</li>"
+				+ "<li>You must verify your account before accessing features like ordering products.</li>"
+				+ "<li>Inactive accounts cannot place orders.</li>" + "</ul>" +
 
-		        "<p>" +
-		        "<a href='" + activationLink + "' style='background-color:#2E86C1;color:white;padding:10px 15px;text-decoration:none;border-radius:5px;'>Activate Account</a>" +
-		        "</p>" +
+				"<p>Please click below to activate your account:</p>" +
 
-		        "<br/>" +
-		        "<p>Regards,<br/><b>Your App Team</b></p>" +
-		        "</body>" +
-		        "</html>";
-		
+				"<p>" + "<a href='" + activationLink
+				+ "' style='background-color:#2E86C1;color:white;padding:10px 15px;text-decoration:none;border-radius:5px;'>Activate Account</a>"
+				+ "</p>" +
+
+				"<br/>" + "<p>Regards,<br/><b>Your App Team</b></p>" + "</body>" + "</html>";
+
 		return htmlBody;
 	}
 }

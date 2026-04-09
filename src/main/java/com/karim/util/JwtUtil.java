@@ -70,15 +70,11 @@ public class JwtUtil {
 	private String buildToken(UUID userId, String email, String role, String type, long expiryMs) {
 		long now = System.currentTimeMillis();
 
-		return Jwts.builder()
-		        .setSubject(userId.toString())   // use setSubject instead of subject()
-		        .claim("email", email)
-		        .claim("role", role)
-		        .claim("type", type)
-		        .setIssuedAt(new Date(now))
-		        .setExpiration(new Date(now + expiryMs))
-		        .signWith(secretKey, SignatureAlgorithm.HS256) // <- specify algorithm
-		        .compact();
+		return Jwts.builder().setSubject(userId.toString()) // use setSubject instead of subject()
+				.claim("email", email).claim("role", role).claim("type", type).setIssuedAt(new Date(now))
+				.setExpiration(new Date(now + expiryMs)).signWith(secretKey, SignatureAlgorithm.HS256) // <- specify
+																										// algorithm
+				.compact();
 	}
 
 	// ----------------------------------------------------------------
@@ -92,13 +88,29 @@ public class JwtUtil {
 	public boolean isTokenValid(String token, String expectedType) {
 		try {
 			Claims claims = extractAllClaims(token);
+
 			String type = claims.get("type", String.class);
-			return expectedType.equals(type);
+
+			// ✅ Check type (case-insensitive)
+			if (type == null || !expectedType.equalsIgnoreCase(type)) {
+				System.out.println("❌ Token type mismatch: expected=" + expectedType + ", actual=" + type);
+				return false;
+			}
+
+			// ✅ Check expiration
+			Date expiration = claims.getExpiration();
+			if (expiration.before(new Date())) {
+				System.out.println("❌ Token expired");
+				return false;
+			}
+			System.out.println("✅ Token validated successfully. Type=" + type);
+			return true;
+
 		} catch (ExpiredJwtException e) {
-			// Expired — let JwtAuthFilter handle 401
+			System.out.println("❌ Token expired (exception)");
 			return false;
 		} catch (JwtException | IllegalArgumentException e) {
-			// Tampered or malformed
+			System.out.println("❌ Invalid token: " + e.getMessage());
 			return false;
 		}
 	}

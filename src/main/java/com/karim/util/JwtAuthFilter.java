@@ -58,7 +58,6 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
         final String authHeader = request.getHeader("Authorization");
 
-        // ✅ 1. No token → continue (public APIs will work)
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
@@ -67,23 +66,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         final String token = authHeader.substring(7);
 
         try {
-            // ✅ 2. Validate token
             if (!jwtUtil.isTokenValid(token, "access")) {
                 throw new BadCredentialsException("Invalid or expired access token");
             }
 
-            // ✅ 3. Set authentication only if not already set
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
-
                 UUID userId = jwtUtil.extractUserId(token);
                 UserDetails userDetails = userDetailsService.loadUserById(userId);
 
-                // ✅ 4. Check if user is active
                 if (!userDetails.isEnabled()) {
                     throw new BadCredentialsException("Account is inactive");
                 }
 
-                // ✅ 5. Create authentication object
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(
                                 userDetails,
@@ -98,16 +92,21 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             }
 
-            // ✅ 6. Continue filter chain
-            filterChain.doFilter(request, response);
-
-        } catch (Exception ex) {
-
-            // ✅ VERY IMPORTANT
+        } catch (BadCredentialsException | io.jsonwebtoken.JwtException | IllegalArgumentException ex) {
             SecurityContextHolder.clearContext();
-
-            // ✅ Let Spring Security handle response
-            throw new BadCredentialsException("JWT Error: " + ex.getMessage(), ex);
+            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+            response.setContentType("application/json");
+            response.getWriter().write("""
+                {
+                  "success": false,
+                  "error": "Invalid or expired token",
+                  "statusCode": 401
+                }
+            """);
+            return;
         }
+
+        // continue outside try-catch
+        filterChain.doFilter(request, response);
     }
 }

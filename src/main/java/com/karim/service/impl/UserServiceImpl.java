@@ -2,6 +2,7 @@ package com.karim.service.impl;
 
 import java.security.SecureRandom;
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.UUID;
 
 import org.springframework.data.domain.Page;
@@ -21,6 +22,7 @@ import com.karim.exception.DuplicateResourceFoundException;
 import com.karim.exception.ResourceNotFoundException;
 import com.karim.repository.ProfileRepository;
 import com.karim.repository.UserRepository;
+import com.karim.service.CloudinaryService;
 import com.karim.service.UserService;
 import com.karim.specifications.UserSpecification;
 
@@ -29,12 +31,14 @@ public class UserServiceImpl implements UserService {
 
 	private final UserRepository userRepo;
 	private final ProfileRepository profileRepo;
+	private final CloudinaryService cloudinaryService;
 
 	private static final SecureRandom random = new SecureRandom();
 
-	public UserServiceImpl(UserRepository userRepo, ProfileRepository profileRepo) {
+	public UserServiceImpl(UserRepository userRepo, ProfileRepository profileRepo,CloudinaryService cloudinaryService) {
 		this.userRepo = userRepo;
 		this.profileRepo = profileRepo;
+		this.cloudinaryService=cloudinaryService;
 	}
 
 	@Override
@@ -74,42 +78,89 @@ public class UserServiceImpl implements UserService {
 	}
 
 	@Override
-	public UserProfileDto getProfile(UUID userId) {
-		UserProfile userProfile = profileRepo.findByUserId(userId).orElseThrow(
-				() -> new ResourceNotFoundException("User Profile not found with given user id " + userId));
-		return mapToDto(userProfile);
+	public Optional<UserProfileDto> getProfile(UUID userId) {
+
+		return profileRepo.findActiveByUserId(userId).map(this::mapToDto);
 	}
+
+//	@Override
+//	@Transactional
+//	public UserProfile createProfile(UUID userId, CreateUserProfileDto dto, UUID actorId) {
+//
+//		// 1. Validate user exists
+//		User user = userRepo.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+//
+//		// 2. Check if profile already exists
+//		profileRepo.findByUserId(userId).ifPresent(p -> {
+//			throw new DuplicateResourceFoundException("Profile already exists for this user");
+//		});
+//
+//		// 3. Create profile
+//		UserProfile profile = new UserProfile();
+//		profile.setUser(user);
+//		profile.setAvatarUrl(dto.getAvatarUrl());
+//		profile.setAvatarPublicId(dto.getAvatarPublicId());
+//		profile.setDateOfBirth(dto.getDateOfBirth());
+//		profile.setGender(dto.getGender());
+//		// profile.setFcmToken(dto.getFcmToken());
+//
+//		// 4. Audit fields
+//		profile.setCreatedBy(actorId);
+//		profile.setUpdatedBy(actorId);
+//
+//		// createdAt, updatedAt handled by @PrePersist
+//
+//		// 5. Save
+//		return profileRepo.save(profile);
+//	}
 
 	@Override
 	@Transactional
-	public UserProfile createProfile(UUID userId, CreateUserProfileDto dto, UUID actorId) {
+	public UserProfile createOrUpdateProfile(UUID userId, CreateUserProfileDto dto, UUID actorId) {
 
-		// 1. Validate user exists
-		User user = userRepo.findById(userId).orElseThrow(() -> new ResourceNotFoundException("User not found"));
+	    User user = userRepo.findById(userId)
+	            .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-		// 2. Check if profile already exists
-		profileRepo.findByUserId(userId).ifPresent(p -> {
-			throw new DuplicateResourceFoundException("Profile already exists for this user");
-		});
+	    Optional<UserProfile> optionalProfile = profileRepo.findAnyByUserId(userId);
 
-		// 3. Create profile
-		UserProfile profile = new UserProfile();
-		profile.setUser(user);
-		profile.setAvatarUrl(dto.getAvatarUrl());
-		profile.setDateOfBirth(dto.getDateOfBirth());
-		profile.setGender(dto.getGender());
-		// profile.setFcmToken(dto.getFcmToken());
+	    UserProfile profile;
 
-		// 4. Audit fields
-		profile.setCreatedBy(actorId);
-		profile.setUpdatedBy(actorId);
+	    if (optionalProfile.isPresent()) {
 
-		// createdAt, updatedAt handled by @PrePersist
+	        profile = optionalProfile.get();
 
-		// 5. Save
-		return profileRepo.save(profile);
+	        // ✅ Reactivate if deleted
+	        if (Boolean.TRUE.equals(profile.getIsDeleted())) {
+	            profile.setIsDeleted(false);
+	            profile.setDeletedAt(null);
+	            profile.setDeletedBy(null);
+	        }
+
+	        // ✅ Delete old image if changed
+	        if (profile.getAvatarPublicId() != null &&
+	                dto.getAvatarPublicId() != null &&
+	                !profile.getAvatarPublicId().equals(dto.getAvatarPublicId())) {
+
+	            cloudinaryService.deleteImage(profile.getAvatarPublicId());
+	        }
+
+	    } else {
+
+	        profile = new UserProfile();
+	        profile.setUser(user);
+	        profile.setCreatedBy(actorId);
+	    }
+
+	    // ✅ Common fields
+	    profile.setAvatarUrl(dto.getAvatarUrl());
+	    profile.setAvatarPublicId(dto.getAvatarPublicId());
+	    profile.setDateOfBirth(dto.getDateOfBirth());
+	    profile.setGender(dto.getGender());
+	    profile.setUpdatedBy(actorId);
+
+	    return profileRepo.save(profile);
 	}
-
+	
 	private UserProfileDto mapToDto(UserProfile profile) {
 		User user = profile.getUser();
 
@@ -133,55 +184,48 @@ public class UserServiceImpl implements UserService {
 	@Transactional
 	public UserProfile updateProfile(UUID userId, UpdateProfileDto dto, UUID actorId) {
 
-		// 1. Fetch existing profile
-		UserProfile profile = profileRepo.findByUserId(userId)
-				.orElseThrow(() -> new ResourceNotFoundException("User profile not found"));
+	    UserProfile profile = profileRepo.findActiveByUserId(userId)
+	            .orElseThrow(() -> new ResourceNotFoundException("User profile not found"));
 
-		// 2. Update only non-null fields (partial update)
+	    if (dto.getAvatarUrl() != null) {
+	        profile.setAvatarUrl(dto.getAvatarUrl());
+	    }
+	    
+	    if (dto.getAvatarPublicId() != null) {
+	        profile.setAvatarPublicId(dto.getAvatarPublicId());
+	    }
 
-		if (dto.getAvatarUrl() != null) {
-			profile.setAvatarUrl(dto.getAvatarUrl());
-		}
+	    if (dto.getDateOfBirth() != null) {
+	        profile.setDateOfBirth(dto.getDateOfBirth());
+	    }
 
-		if (dto.getDateOfBirth() != null) {
-			profile.setDateOfBirth(dto.getDateOfBirth());
-		}
+	    if (dto.getGender() != null) {
+	        profile.setGender(dto.getGender());
+	    }
 
-		if (dto.getGender() != null) {
-			profile.setGender(dto.getGender());
-		}
+	    profile.setUpdatedBy(actorId);
 
-//	    if (dto.getFcmToken() != null) {
-//	        profile.setFcmToken(dto.getFcmToken());
-//	    }
-
-//	    if (dto.getDeviceType() != null) {
-//	        profile.setDeviceType(dto.getDeviceType());
-//	    }
-
-		// 3. Audit fields
-		profile.setUpdatedBy(actorId);
-
-		// updatedAt handled by @PreUpdate
-
-		// 4. Save updated entity
-		return profileRepo.save(profile);
+	    return profileRepo.save(profile);
 	}
 
 	@Override
 	@Transactional
 	public void softDeleteProfile(UUID userId, UUID actorId) {
 
-		// 1. Fetch profile
-		UserProfile profile = profileRepo.findByUserId(userId)
-				.orElseThrow(() -> new RuntimeException("User profile not found"));
+	    UserProfile profile = profileRepo.findActiveByUserId(userId)
+	            .orElseThrow(() -> new ResourceNotFoundException("User profile not found"));
 
-		// 2. Set audit fields BEFORE delete
-		profile.setDeletedBy(actorId);
-		profile.setDeletedAt(LocalDateTime.now());
+	    // ✅ Delete image from Cloudinary
+	    if (profile.getAvatarPublicId() != null) {
+	        cloudinaryService.deleteImage(profile.getAvatarPublicId());
+	    }
 
-		// 3. Soft delete (Hibernate will update is_deleted = true)
-		profileRepo.delete(profile);
+	    // ✅ Soft delete
+	    profile.setIsDeleted(true);
+	    profile.setDeletedBy(actorId);
+	    profile.setDeletedAt(LocalDateTime.now());
+
+	    profileRepo.save(profile);
 	}
 
 	@Override

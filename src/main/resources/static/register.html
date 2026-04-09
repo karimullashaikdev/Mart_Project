@@ -297,15 +297,10 @@
         try { const e = JSON.parse(rawText); msg = e.message || e.error || JSON.stringify(e); } catch { if (rawText) msg = rawText; }
         throw new Error(msg);
       }
-      const result = JSON.parse(rawText);
-      const userId = result?.data?.userId || '';
-      document.getElementById('successMsg').innerHTML = '✓ Account created!<br><span style="opacity:0.8;font-size:12px;">Check your email for your User ID &amp; OTP. Redirecting…</span>';
+      JSON.parse(rawText);
+      document.getElementById('successMsg').innerHTML = '✓ Account created!<br><span style="opacity:0.8;font-size:12px;">Check your email for the activation link. Redirecting to login in 5s…</span>';
       document.getElementById('successMsg').classList.add('show');
-      setTimeout(() => {
-        window.location.href = userId
-          ? `activate.html?userId=${encodeURIComponent(userId)}&email=${encodeURIComponent(email)}`
-          : 'activate.html';
-      }, 2000);
+      setTimeout(() => { window.location.href = 'login.html'; }, 5000);
     } catch (err) {
       showError(err.message || 'Registration failed. Please try again.');
     } finally { btn.classList.remove('loading'); btn.disabled = false; }

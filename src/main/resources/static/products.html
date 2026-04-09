@@ -228,6 +228,30 @@
 
   .skel-line { height: 14px; background: var(--border); border-radius: 4px; margin-bottom: 10px; animation: pulse 1.4s ease infinite alternate; }
 
+  /* ── Avatar Upload ── */
+  .avatar-upload-area {
+    display: flex; align-items: center; gap: 16px; margin-bottom: 14px;
+  }
+  .avatar-preview {
+    width: 72px; height: 72px; border-radius: 50%; flex-shrink: 0;
+    background: var(--accent); color: white; font-size: 22px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden; border: 2px solid var(--border); font-family: 'DM Sans', sans-serif;
+  }
+  .avatar-preview img { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
+  .avatar-upload-controls { flex: 1; }
+  .avatar-upload-label {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+    padding: 9px 16px; font-family: 'DM Sans', sans-serif; font-size: 13px;
+    font-weight: 500; color: var(--text); cursor: pointer; transition: all 0.2s;
+    width: 100%; justify-content: center;
+  }
+  .avatar-upload-label:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+  .avatar-upload-label.uploading { opacity: 0.6; pointer-events: none; }
+  #avatarFileInput { display: none; }
+  .avatar-upload-hint { font-size: 11px; color: var(--muted); margin-top: 6px; text-align: center; }
+
   .drawer-footer { padding: 16px 24px; border-top: 1px solid var(--border); flex-shrink: 0; }
 
   @media (max-width: 480px) {
@@ -610,7 +634,9 @@
       </div>
       <div class="field-group">
         <label>Email</label>
-        <input type="email" id="acc-email" placeholder="your@email.com" />
+        <div id="acc-email-display" style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--muted);font-family:'DM Sans',sans-serif;">—</div>
+        <input type="hidden" id="acc-email" />
+        <div style="font-size:11px;color:var(--muted);margin-top:5px;">Email cannot be changed</div>
       </div>
       <div class="field-group">
         <label>Phone</label>
@@ -623,10 +649,20 @@
     <!-- ── TAB: Profile ── -->
     <div class="tab-panel" id="tab-profile">
       <div class="section-label">Profile Info</div>
-      <div class="field-group">
-        <label>Avatar URL</label>
-        <input type="url" id="prf-avatar" placeholder="https://…" oninput="previewAvatar(this.value)" />
+      <!-- Avatar Upload -->
+      <div class="avatar-upload-area">
+        <div class="avatar-preview" id="prf-avatar-preview">👤</div>
+        <div class="avatar-upload-controls">
+          <label class="avatar-upload-label" id="avatarUploadLabel" for="avatarFileInput">
+            <span id="avatarUploadIcon">📷</span>
+            <span id="avatarUploadText">Upload Photo</span>
+          </label>
+          <input type="file" id="avatarFileInput" accept="image/*" onchange="handleAvatarUpload(this)" />
+          <div class="avatar-upload-hint">JPG, PNG or WEBP · Max 5MB</div>
+        </div>
       </div>
+      <input type="hidden" id="prf-avatar" />
+	  <input type="hidden" id="prf-avatar-publicId" />
       <div class="field-group">
         <label>Date of Birth</label>
         <input type="date" id="prf-dob" />
@@ -638,7 +674,6 @@
           <option value="MALE">Male</option>
           <option value="FEMALE">Female</option>
           <option value="OTHER">Other</option>
-          <option value="PREFER_NOT_TO_SAY">Prefer not to say</option>
         </select>
       </div>
       <div class="inline-msg" id="prf-msg"></div>
@@ -728,20 +763,75 @@
 <script>
   // ── Auth guard ──
   (function guardUser() {
-    const token = localStorage.getItem('authToken');
-    if (!token) { window.location.href = 'login.html'; return; }
-    try {
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      const role = (payload.role || payload.roles || payload.authorities || '').toString().toUpperCase();
-      if (role.includes('ADMIN')) { window.location.href = 'admin.html'; return; }
-      if (role.includes('DELIVERY')) { window.location.href = 'delivery-dashboard.html'; return; }
-    } catch {
-      localStorage.clear();
-      window.location.href = 'login.html';
-    }
+    const t = localStorage.getItem('authToken');
+    if (!t) { window.location.href = 'login.html'; return; }
+    const role = (localStorage.getItem('role') || '').toUpperCase();
+    if (role === 'ADMIN') { window.location.href = 'admin.html'; return; }
+    if (role === 'DELIVERY') { window.location.href = 'delivery-dashboard.html'; return; }
   })();
 
-  const token = localStorage.getItem('authToken');
+  // ── Auto token-refresh wrapper ──
+  // Intercepts 401s, refreshes the access token once, retries the original request.
+  // If refresh fails → logout.
+  let _refreshing = null;
+
+  async function refreshAccessToken() {
+    if (_refreshing) {
+      console.log('⏳ Already refreshing token...');
+      return _refreshing;
+    }
+
+    _refreshing = (async () => {
+      const refresh = localStorage.getItem('refreshToken');
+
+      console.log('🔄 Starting token refresh...');
+      console.log('🔑 Refresh token:', refresh ? refresh.substring(0, 20) + '...' : 'NO REFRESH TOKEN');
+
+      if (!refresh) throw new Error('No refresh token');
+
+      const res = await fetch('/api/auth/refresh-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken: refresh })
+      });
+
+      console.log('📡 Refresh response status:', res.status);
+
+      if (!res.ok) {
+        console.error('❌ Refresh API failed:', res.status);
+        throw new Error('Refresh failed: ' + res.status);
+      }
+
+      const json = await res.json();
+      console.log('📦 Refresh response body:', json);
+
+      const newAccess  = json.data?.accessToken  || json.accessToken;
+      const newRefresh = json.data?.refreshToken || json.refreshToken;
+
+      console.log('🆕 New Access Token:', newAccess ? newAccess.substring(0, 20) + '...' : 'NULL');
+      console.log('🆕 New Refresh Token:', newRefresh ? newRefresh.substring(0, 20) + '...' : 'NULL');
+
+      if (!newAccess) throw new Error('No accessToken');
+
+      // ✅ Store tokens
+      localStorage.setItem('authToken', newAccess);
+
+      if (newRefresh) {
+        localStorage.setItem('refreshToken', newRefresh);
+      }
+
+      console.log('✅ Token stored successfully');
+
+      return newAccess;
+    })();
+
+    try {
+      return await _refreshing;
+    } finally {
+      console.log('🔁 Resetting refresh lock');
+      _refreshing = null;
+    }
+  }
 
   // ── Pagination state ──
   let currentPage = 0;
@@ -763,13 +853,16 @@
     document.getElementById('profileDrawer').classList.add('open');
     document.getElementById('drawerOverlay').classList.add('open');
     document.body.style.overflow = 'hidden';
-    loadAccountData();
+    loadAccountData(true);
   }
+  window.openDrawer = openDrawer;
+  
   function closeDrawer() {
     document.getElementById('profileDrawer').classList.remove('open');
     document.getElementById('drawerOverlay').classList.remove('open');
     document.body.style.overflow = '';
   }
+  window.closeDrawer = closeDrawer;
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeDrawer(); });
 
   // ── Tab switching ──
@@ -802,10 +895,10 @@
   // ═══════════════════════════════════════
   // ACCOUNT TAB — GET /me + PATCH /me
   // ═══════════════════════════════════════
-  async function loadAccountData() {
+  // loadAccountData: silentOnly=true skips logout (used on page init for navbar avatar)
+  async function loadAccountData(silentOnly = false) {
     try {
-      const res = await fetch('/api/users/me', { headers: { 'Authorization': 'Bearer ' + token } });
-      if (res.status === 401) { logout(); return; }
+      const res = await apiFetch('/api/users/me');
       if (!res.ok) return;
       const json = await res.json();
       userData = json.data || json;
@@ -817,6 +910,8 @@
       document.getElementById('acc-name').value  = name;
       document.getElementById('acc-email').value = email;
       document.getElementById('acc-phone').value = phone;
+      const emailDisplay = document.getElementById('acc-email-display');
+      if (emailDisplay) emailDisplay.textContent = email || '—';
 
       // Update hero
       document.getElementById('heroName').textContent  = name || 'My Account';
@@ -839,19 +934,17 @@
 
     const body = {
       fullName: document.getElementById('acc-name').value.trim() || undefined,
-      email:    document.getElementById('acc-email').value.trim() || undefined,
       phone:    document.getElementById('acc-phone').value.trim() || undefined,
     };
     Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
 
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
-      const res = await fetch('/api/users/me', {
+      const res = await apiFetch('/api/users/me', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      if (res.status === 401) { logout(); return; }
       if (!res.ok) { const e = await res.json().catch(()=>{}); throw new Error(e?.message || 'Update failed'); }
 
       const name = body.fullName || userData.fullName || '';
@@ -871,91 +964,310 @@
   // ═══════════════════════════════════════
   async function loadProfileForAvatar() {
     try {
-      const res = await fetch('/api/users/me/profile', { headers: { 'Authorization': 'Bearer ' + token } });
+      const res = await apiFetch('/api/users/me/profile');
+
+      // ✅ IF PROFILE DELETED → RESET AVATAR
+      if (res.status === 404) {
+        const initials = getInitials(userData.fullName || '');
+
+        document.getElementById('bigAvatar').innerHTML = initials;
+        document.getElementById('profileAvatarInitials').innerHTML = initials;
+
+        return;
+      }
+
       if (!res.ok) return;
+
       const json = await res.json();
       const p = json.data || json;
-      if (p?.avatarUrl) setAvatarUrl(p.avatarUrl);
-    } catch {}
+
+      if (p?.avatarUrl) {
+        setAvatarUrl(p.avatarUrl);
+      }
+
+    } catch (err) {
+      console.error(err);
+    }
   }
 
   async function loadProfile() {
     const msg = document.getElementById('prf-msg');
     msg.className = 'inline-msg';
+
     try {
-      const res = await fetch('/api/users/me/profile', { headers: { 'Authorization': 'Bearer ' + token } });
+      const res = await apiFetch('/api/users/me/profile');
+
+      console.log('👤 Profile API status:', res.status);
+
+      // ✅ HANDLE PROFILE NOT EXIST
       if (res.status === 404) {
+        console.log('👤 Profile not found → show create form');
+
         profileExists = false;
         document.getElementById('prf-save-btn').textContent = 'Create Profile';
+
         return;
       }
-      if (res.status === 401) { logout(); return; }
-      if (!res.ok) return;
+
+      if (!res.ok) {
+        console.warn('⚠️ Failed to load profile');
+        return;
+      }
 
       const json = await res.json();
       const p = json.data || json;
+
+      console.log('👤 Profile loaded:', p);
+
       profileExists = true;
 
-      document.getElementById('prf-avatar').value  = p.avatarUrl || '';
-      document.getElementById('prf-dob').value     = p.dateOfBirth ? p.dateOfBirth.split('T')[0] : '';
-      document.getElementById('prf-gender').value  = p.gender || '';
+      // ✅ Populate fields
+      document.getElementById('prf-avatar').value = p.avatarUrl || '';
+      document.getElementById('prf-dob').value =
+        p.dateOfBirth ? p.dateOfBirth.split('T')[0] : '';
+
+      document.getElementById('prf-gender').value = p.gender || '';
+
       document.getElementById('prf-save-btn').textContent = 'Save Profile';
-      if (p.avatarUrl) setAvatarUrl(p.avatarUrl);
-    } catch (err) { console.warn('loadProfile:', err); }
+
+      // ✅ Avatar preview
+      if (p.avatarUrl) {
+        setAvatarUrl(p.avatarUrl);
+        setPrfAvatarPreview(p.avatarUrl);
+      }
+
+    } catch (err) {
+      console.warn('❌ loadProfile error:', err);
+    }
   }
 
-  async function saveProfile() {
-    const btn = document.getElementById('prf-save-btn');
-    const msg = document.getElementById('prf-msg');
-    msg.className = 'inline-msg';
+  // ── Avatar Upload ──
+  function setPrfAvatarPreview(url) {
+    const preview = document.getElementById('prf-avatar-preview');
+    if (url) {
+      preview.innerHTML = `<img src="${url}" onerror="this.parentElement.textContent='${getInitials(userData.fullName || '')}'" />`;
+    } else {
+      preview.textContent = getInitials(userData.fullName || '') || '👤';
+    }
+  }
 
-    const body = {
-      avatarUrl:   document.getElementById('prf-avatar').value.trim() || undefined,
-      dateOfBirth: document.getElementById('prf-dob').value || undefined,
-      gender:      document.getElementById('prf-gender').value || undefined,
-    };
-    Object.keys(body).forEach(k => body[k] === undefined && delete body[k]);
+  async function refreshUserProfileState() {
+    try {
+      const res = await apiFetch('/api/users/me/profile');
 
-    btn.disabled = true; btn.textContent = 'Saving…';
+      if (res.ok) {
+        const data = await res.json();
+        profileExists = true;
+        console.log("✅ Profile exists in backend");
+      } else {
+        profileExists = false;
+        console.log("❌ No profile found");
+      }
+
+    } catch (err) {
+      profileExists = false;
+    }
+  }
+  
+  async function handleAvatarUpload(input) {
+    const file = input.files[0];
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      showToast('❌ Image must be under 5MB', true); input.value = ''; return;
+    }
+    const label = document.getElementById('avatarUploadLabel');
+    const uploadText = document.getElementById('avatarUploadText');
+    const uploadIcon = document.getElementById('avatarUploadIcon');
+    label.classList.add('uploading');
+    uploadIcon.textContent = '⏳';
+    uploadText.textContent = 'Uploading…';
+
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+	  console.log('📤 Uploading image...');
+      const res = await apiFetch('/api/images/upload', {
+        method: 'POST',
+        body: formData
+      });
+      if (!res.ok) {
+        const e = await res.json().catch(() => {});
+        throw new Error(e?.message || 'Upload failed');
+      }
+	  console.log('📤 Upload response status:', res.status);
+      const data = await res.json();
+      const imageUrl = data.imageUrl;
+	  const publicId = data.publicId;
+	  
+      if (!imageUrl) throw new Error('No image URL in response');
+
+      // Store URL and update all avatar previews
+      document.getElementById('prf-avatar').value = imageUrl;
+	  document.getElementById('prf-avatar-publicId').value = publicId;
+	  
+      setPrfAvatarPreview(imageUrl);
+      setAvatarUrl(imageUrl);
+      uploadIcon.textContent = '✓';
+      uploadText.textContent = 'Photo uploaded';
+      showToast('✓ Photo uploaded');
+      // Auto-save the avatar URL to profile
+      await saveProfileAvatar(imageUrl,publicId);
+    } catch (err) {
+      uploadIcon.textContent = '📷';
+      uploadText.textContent = 'Upload Photo';
+      showToast('❌ ' + (err.message || 'Upload failed'), true);
+    } finally {
+      label.classList.remove('uploading');
+      input.value = '';
+      setTimeout(() => { uploadIcon.textContent = '📷'; uploadText.textContent = 'Upload Photo'; }, 3000);
+    }
+  }
+
+  // Auto-save avatar URL immediately after upload
+  async function saveProfileAvatar(avatarUrl, publicId) {
     try {
       const method = profileExists ? 'PATCH' : 'POST';
-      const res = await fetch('/api/users/me/profile', {
+	  console.log("📌 Method being used:", method);
+      const res = await apiFetch('/api/users/me/profile', {
         method,
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-        body: JSON.stringify(body)
+        headers: { 'Content-Type': 'application/json' },
+		body: JSON.stringify({ 
+		  avatarUrl,
+		  avatarPublicId: publicId
+		})
       });
-      if (res.status === 401) { logout(); return; }
-      if (res.status === 409) { profileExists = true; /* already exists, retry PATCH next */ }
-      if (!res.ok && res.status !== 409) {
-        const e = await res.json().catch(()=>{});
-        throw new Error(e?.message || 'Failed to save profile');
-      }
-      profileExists = true;
-      btn.textContent = 'Save Profile';
-      if (body.avatarUrl) setAvatarUrl(body.avatarUrl);
-      msg.className = 'inline-msg success'; msg.textContent = '✓ Profile saved successfully';
-    } catch (err) {
-      msg.className = 'inline-msg error'; msg.textContent = '✕ ' + err.message;
-    } finally { btn.disabled = false; if (btn.textContent === 'Saving…') btn.textContent = 'Save Profile'; }
-  }
 
+      if (res.ok) {
+        profileExists = true;
+      }
+
+    } catch (err) {
+      console.warn('saveProfileAvatar:', err);
+    }
+  }
+  
+  async function saveProfile() {
+
+    const msg = document.getElementById('prf-msg');
+    const btn = document.getElementById('prf-save-btn');
+
+    msg.className = 'inline-msg';
+
+	const payload = {
+	  dateOfBirth: document.getElementById('prf-dob').value,
+	  gender: document.getElementById('prf-gender').value,
+	  avatarUrl: document.getElementById('prf-avatar').value,
+	  avatarPublicId: document.getElementById('prf-avatar-publicId').value
+	};
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+
+    try {
+      const method = profileExists ? 'PATCH' : 'POST';
+
+      const res = await apiFetch('/api/users/me/profile', {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const e = await res.json().catch(()=>{});
+        throw new Error(e?.error || e?.message || 'Failed to save profile');
+      }
+
+      profileExists = true;
+
+      // ✅ SUCCESS MESSAGE
+      msg.className = 'inline-msg success';
+      msg.textContent = profileExists 
+          ? '✓ Profile updated successfully' 
+          : '✓ Profile created successfully';
+
+      showToast('✓ Profile saved');
+
+      // update button text
+      btn.textContent = 'Save Profile';
+
+    } catch (err) {
+
+      msg.className = 'inline-msg error';
+      msg.textContent = '✕ ' + err.message;
+
+    } finally {
+      btn.disabled = false;
+      if (!profileExists) {
+        btn.textContent = 'Create Profile';
+      }
+    }
+  }
   async function deleteProfile() {
     if (!confirm('Delete your profile? Your account will remain active.')) return;
+
     try {
-      const res = await fetch('/api/users/me/profile', {
-        method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token }
+      // ✅ STEP 1: GET PUBLIC ID BEFORE DELETE
+      const publicId = document.getElementById('prf-avatar-publicId').value;
+
+      // ✅ STEP 2: DELETE PROFILE (BACKEND)
+      const res = await apiFetch('/api/users/me/profile', {
+        method: 'DELETE'
       });
-      if (res.status === 401) { logout(); return; }
+
       if (res.status === 204 || res.ok) {
+
+        // ✅ STEP 3: DELETE IMAGE FROM CLOUDINARY (IF EXISTS)
+        if (publicId) {
+          try {
+            await apiFetch(`/api/images/delete?publicId=${publicId}`, {
+              method: 'DELETE'
+            });
+          } catch (imgErr) {
+            console.warn("Image delete failed:", imgErr);
+          }
+        }
+
+        // ✅ STEP 4: RESET STATE
         profileExists = false;
+		console.log("🧠 profileExists after delete:", profileExists);
+
+        // ✅ CLEAR INPUT FIELDS
         document.getElementById('prf-avatar').value = '';
-        document.getElementById('prf-dob').value    = '';
+        document.getElementById('prf-avatar-publicId').value = '';
+        document.getElementById('prf-dob').value = '';
         document.getElementById('prf-gender').value = '';
+
+        // ✅ CLEAR LOCAL STORAGE / CACHE (IMPORTANT FIX)
+        localStorage.removeItem('userProfile');
+        localStorage.removeItem('avatarUrl');
+
+        // ✅ RESET BUTTON TEXT
         document.getElementById('prf-save-btn').textContent = 'Create Profile';
-        showToast('✓ Profile deleted');
+
+        // ✅ RESET AVATAR UI
+        const initials = getInitials(userData.fullName || '');
+
+        document.getElementById('prf-avatar-preview').innerHTML = initials;
+        document.getElementById('bigAvatar').innerHTML = initials;
+        document.getElementById('profileAvatarInitials').innerHTML = initials;
+
+        // ✅ FORCE IMAGE RESET (IMPORTANT)
+        document.getElementById('prf-avatar-preview').src = '';
+        
+        // ✅ SUCCESS MESSAGE
+        showToast('✅ Profile deleted successfully');
+
+        // ✅ OPTIONAL: REFRESH TOKEN FLOW SAFETY
+        // (prevents 401 when recreating profile)
+        await refreshUserProfileState();
+
       }
-    } catch (err) { showToast('❌ ' + err.message, true); }
-  }
+
+    } catch (err) {
+      console.error(err);
+      showToast('❌ Failed to delete profile: ' + err.message, true);
+    }
+  }  
 
   // ═══════════════════════════════════════
   // ADDRESSES TAB — GET/POST /me/addresses
@@ -967,8 +1279,7 @@
       <div class="skel-line" style="width:60%"></div>
       <div class="skel-line" style="width:70%"></div>`;
     try {
-      const res = await fetch('/api/users/me/addresses', { headers: { 'Authorization': 'Bearer ' + token } });
-      if (res.status === 401) { logout(); return; }
+      const res = await apiFetch('/api/users/me/addresses');
       if (!res.ok) throw new Error('Failed to load addresses');
       const json = await res.json();
       const addresses = json.data || json;
@@ -1032,12 +1343,11 @@
 
     btn.disabled = true; btn.textContent = 'Saving…';
     try {
-      const res = await fetch('/api/users/me/addresses', {
+      const res = await apiFetch('/api/users/me/addresses', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body)
       });
-      if (res.status === 401) { logout(); return; }
       if (!res.ok) { const e = await res.json().catch(()=>{}); throw new Error(e?.message || 'Failed to save address'); }
 
       toggleAddressForm();
@@ -1087,12 +1397,11 @@
       if (currentFilter && currentFilter !== 'all') params.set('category', currentFilter);
       if (searchQuery && searchQuery.trim()) params.set('search', searchQuery.trim());
 
-      const res = await fetch(`/api/products?${params.toString()}`, {
+      const res = await apiFetch(`/api/products?${params.toString()}`, {
         method: 'GET',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token }
+        headers: { 'Content-Type': 'application/json' }
       });
 
-      if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return; }
       if (!res.ok) throw new Error('Server returned ' + res.status);
 
       const data = await res.json();
@@ -1218,23 +1527,68 @@
   }
   async function loadCartCount() {
     try {
-      const res = await fetch('/api/cart', { headers: { 'Authorization': 'Bearer ' + token } });
+      const res = await apiFetch('/api/cart');
       if (!res.ok) return;
       const items = await res.json();
       cartItemCount = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
       updateCartBtn();
     } catch (err) { console.warn('Could not load cart count:', err); }
   }
+  
+  async function apiFetch(url, options = {}, retry = true) {
+    let token = localStorage.getItem('authToken');
+
+	console.log("TOKEN FULL:", token);
+
+    options.headers = {
+      ...(options.headers || {}),
+      'Authorization': `Bearer ${token}`
+    };
+
+    let res = await fetch(url, options);
+
+    console.log('📡 Response status:', res.status, 'for', url);
+
+    // ✅ ONLY handle 401 (not 404/500)
+    if (res.status === 401 && retry) {
+      console.warn('⚠️ 401 received → trying refresh...');
+
+      try {
+        const newToken = await refreshAccessToken();
+
+        if (!newToken) {
+          throw new Error("No token received after refresh");
+        }
+
+        // get updated token again
+        token = localStorage.getItem('authToken');
+
+        options.headers['Authorization'] = `Bearer ${token}`;
+
+        console.log('🔁 Retrying API:', url);
+
+        return await apiFetch(url, options, false);
+
+      } catch (err) {
+        console.error('❌ Refresh failed → logging out', err);
+        logout();
+        throw err;
+      }
+    }
+
+    // ✅ DO NOT auto-handle other errors here
+    return res;
+  }
+  
   async function addToCart(productId, name, btnEl) {
     const originalText = btnEl.innerHTML;
     btnEl.disabled = true; btnEl.innerHTML = '⏳ Adding...';
     try {
-      const res = await fetch('/api/cart/add', {
+      const res = await apiFetch('/api/cart/add', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ productId, quantity: 1 })
       });
-      if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return; }
       if (!res.ok) { const e = await res.json().catch(()=>{}); throw new Error(e.message || 'Failed to add to cart'); }
       cartItemCount++;
       updateCartBtn();
@@ -1256,13 +1610,19 @@
     setTimeout(() => t.classList.remove('show'), 2500);
   }
 
-  function logout() { localStorage.clear(); window.location.href = 'login.html'; }
+  function logout() {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('role');
+    localStorage.removeItem('username');
+    window.location.href = 'login.html';
+  }
 
   // ── Init ──
   loadProducts(0);
   loadCartCount();
-  // Pre-load account data for avatar in navbar
-  loadAccountData();
+  // Pre-load account data for avatar in navbar (silent – no logout on 401)
+  loadAccountData(true);
 </script>
 </body>
 </html>

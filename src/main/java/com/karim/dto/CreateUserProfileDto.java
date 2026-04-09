@@ -11,6 +11,8 @@ import lombok.Data;
 public class CreateUserProfileDto {
 
 	private String avatarUrl;
+	
+	private String avatarPublicId;
 
 	private LocalDate dateOfBirth;
 

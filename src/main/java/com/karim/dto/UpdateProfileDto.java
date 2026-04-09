@@ -10,6 +10,8 @@ import lombok.Data;
 public class UpdateProfileDto {
 
 	private String avatarUrl;
+	
+	private String avatarPublicId;
 
 	private LocalDate dateOfBirth;
 

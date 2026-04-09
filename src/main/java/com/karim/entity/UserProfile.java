@@ -27,9 +27,6 @@ import lombok.Data;
 
 @Entity
 @Table(name = "user_profiles")
-
-@SQLDelete(sql = "UPDATE user_profiles SET is_deleted = true WHERE id = ?")
-@SQLRestriction("is_deleted = false")
 @Data
 public class UserProfile {
 
@@ -46,6 +43,8 @@ public class UserProfile {
 
 	@Column(name = "avatar_url")
 	private String avatarUrl;
+	
+	private String avatarPublicId;
 
 	@Column(name = "date_of_birth")
 	private LocalDate dateOfBirth;
@@ -55,9 +54,11 @@ public class UserProfile {
 
 	// 🔁 Audit Fields
 	@Column(name = "created_by", columnDefinition = "CHAR(36)")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID createdBy;
 
 	@Column(name = "updated_by", columnDefinition = "CHAR(36)")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID updatedBy;
 
 	@Column(name = "created_at")
@@ -74,6 +75,7 @@ public class UserProfile {
 	private LocalDateTime deletedAt;
 
 	@Column(name = "deleted_by", columnDefinition = "CHAR(36)")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID deletedBy;
 
 	// ✅ Lifecycle Hooks
