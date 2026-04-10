@@ -88,6 +88,13 @@
 			<optional>true</optional>
 		</dependency>
 
+		<!--razor pay-->
+		<dependency>
+			<groupId>com.razorpay</groupId>
+			<artifactId>razorpay-java</artifactId>
+			<version>1.4.8</version>
+		</dependency>
+
 		<!-- Devtools -->
 		<!-- <dependency>
             <groupId>org.springframework.boot</groupId>

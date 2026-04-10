@@ -21,11 +21,14 @@ public class PaymentResponse {
 
 	private String method;
 
-	// 🔐 Only for testing (remove in production later)
+	// only for COD/manual/internal testing flow
 	private String otp;
 
-	// 🔮 Future gateway integration (Razorpay etc.)
+	// Razorpay details
+	private String gatewayName;
+	private String gatewayKeyId;
 	private String gatewayOrderId;
-
+	private String gatewayPaymentId;
+	private String gatewaySignature;
 	private String gatewayTxnId;
 }

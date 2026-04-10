@@ -32,11 +32,7 @@ import lombok.Setter;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-
-// ✅ Soft delete filter
 @SQLRestriction("is_deleted = false")
-
-// ✅ Soft delete operation
 @SQLDelete(sql = "UPDATE payments SET is_deleted = true, deleted_at = now() WHERE id = ?")
 public class Payment {
 
@@ -45,49 +41,54 @@ public class Payment {
 	@Column(name = "id", updatable = false, nullable = false)
 	private UUID id;
 
-	// 🔗 Foreign Keys (kept as UUID for flexibility)
 	@Column(name = "order_id")
 	private UUID orderId;
 
 	@Column(name = "user_id")
 	private UUID userId;
 
-	// 🔑 Unique payment reference
 	@Column(name = "payment_reference", unique = true)
 	private String paymentReference;
 
-	// 💳 Payment method
 	@Enumerated(EnumType.STRING)
 	@Column(name = "method")
 	private PaymentMethod method;
 
-	// 📊 Payment status
 	@Enumerated(EnumType.STRING)
 	@Column(name = "status")
 	private PaymentStatus status;
 
-	// 💰 Amount details
 	@Column(name = "amount")
 	private Float amount;
 
 	@Column(name = "refunded_amount")
 	private Float refundedAmount;
 
-	// 🏦 Gateway details
 	@Column(name = "gateway_txn_id")
 	private String gatewayTxnId;
 
 	@Column(name = "gateway_response", columnDefinition = "TEXT")
 	private String gatewayResponse;
 
-	// ⏱️ Timeline
+	// NEW: Razorpay fields
+	@Column(name = "gateway_order_id", unique = true)
+	private String gatewayOrderId;
+
+	@Column(name = "gateway_payment_id", unique = true)
+	private String gatewayPaymentId;
+
+	@Column(name = "gateway_signature", columnDefinition = "TEXT")
+	private String gatewaySignature;
+
+	@Column(name = "gateway_name")
+	private String gatewayName;
+
 	@Column(name = "initiated_at")
 	private LocalDateTime initiatedAt;
 
 	@Column(name = "completed_at")
 	private LocalDateTime completedAt;
 
-	// 👤 Audit fields
 	@Column(name = "created_by")
 	private UUID createdBy;
 
@@ -100,7 +101,6 @@ public class Payment {
 	@Column(name = "updated_at")
 	private LocalDateTime updatedAt;
 
-	// 🗑️ Soft delete fields
 	@Column(name = "is_deleted")
 	private Boolean isDeleted = false;
 
@@ -110,14 +110,14 @@ public class Payment {
 	@Column(name = "deleted_by")
 	private UUID deletedBy;
 
-	// ✅ Auto timestamps
 	@PrePersist
 	public void prePersist() {
 		this.createdAt = LocalDateTime.now();
 		this.updatedAt = LocalDateTime.now();
 
-		if (this.isDeleted == null)
+		if (this.isDeleted == null) {
 			this.isDeleted = false;
+		}
 	}
 
 	@PreUpdate

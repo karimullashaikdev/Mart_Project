@@ -215,6 +215,7 @@
     <div class="nav-label">Main</div>
     <a class="nav-item active" href="#"><span class="icon">⬛</span> Dashboard</a>
     <a class="nav-item" onclick="openProductsModal()" style="cursor:pointer"><span class="icon">📦</span> Products</a>
+    <a class="nav-item" onclick="openCategoriesModal()" style="cursor:pointer"><span class="icon">🗂️</span> Categories</a>
     <a class="nav-item" onclick="openUsersModal()" style="cursor:pointer"><span class="icon">👥</span> Users</a>
     <a class="nav-item" onclick="openOrdersModal()" style="cursor:pointer"><span class="icon">🛒</span> Orders</a>
   </div>
@@ -559,6 +560,162 @@
 </div>
 
 
+<!-- ── Categories Modal ── -->
+<div class="modal-overlay" id="categoriesModal" onclick="closeCategoriesModalOnBg(event)">
+  <div class="modal" style="width:1180px;max-height:90vh">
+    <div class="modal-head">
+      <div>
+        <div class="modal-title">Categories Management_</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:3px" id="modalCategoryCount">Fetching...</div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn-primary" style="font-size:12px;padding:7px 14px" onclick="openCategoryForm()">+ Add Category</button>
+        <button class="btn-ghost" style="font-size:12px;padding:7px 14px" onclick="saveCategoryReorder()">💾 Save Order</button>
+        <button class="modal-close" onclick="closeCategoriesModal()">✕</button>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;padding:14px 24px;border-bottom:1px solid var(--border);background:var(--surface2);flex-wrap:wrap">
+      <input id="categorySearchInput" type="text" placeholder="🔍 Search category by name..." oninput="filterCategories()"
+        style="flex:1;min-width:220px;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:13px;outline:none"/>
+      <select id="categoryActiveFilter" onchange="filterCategories()"
+        style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:13px;outline:none;cursor:pointer">
+        <option value="">All Active Flags</option>
+        <option value="true">Active</option>
+        <option value="false">Inactive</option>
+      </select>
+      <select id="categoryDeletedFilter" onchange="filterCategories()"
+        style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:13px;outline:none;cursor:pointer">
+        <option value="">All Delete Status</option>
+        <option value="false">Not Deleted</option>
+        <option value="true">Deleted</option>
+      </select>
+      <select id="categoryParentFilter" onchange="filterCategories()"
+        style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:13px;outline:none;cursor:pointer;min-width:220px">
+        <option value="">All Parents</option>
+        <option value="ROOT">Root Categories</option>
+      </select>
+      <button class="btn-ghost" style="font-size:12px;padding:7px 14px" onclick="clearCategoryFilters()">Clear</button>
+    </div>
+
+    <div class="modal-body">
+      <table>
+        <thead>
+          <tr>
+            <th>Sort</th>
+            <th>Name</th>
+            <th>Slug</th>
+            <th>Image</th>
+            <th>Active</th>
+            <th>Parent</th>
+            <th>ID</th>
+            <th style="text-align:center">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="allCategoriesTable">
+          <tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">Loading categories...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Add / Edit Category Form Modal ── -->
+<div class="modal-overlay" id="categoryFormModal" onclick="closeCategoryFormOnBg(event)">
+  <div class="modal" style="width:620px;max-height:92vh">
+    <div class="modal-head">
+      <div class="modal-title" id="categoryFormTitle">Add Category_</div>
+      <button class="modal-close" onclick="closeCategoryForm()">✕</button>
+    </div>
+    <div class="modal-body" style="padding:28px;display:flex;flex-direction:column;gap:18px">
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Category Name *</label>
+        <input id="cf_name" type="text" placeholder="e.g. Electronics"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none"/>
+      </div>
+
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Category Image</label>
+
+        <input id="cf_imageUrl" type="hidden"/>
+        <input id="cf_imagePublicId" type="hidden"/>
+
+        <div id="categoryImagePreviewWrap" style="display:none;margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden;height:160px;background:var(--bg);position:relative">
+          <img id="categoryImagePreview" src="" alt="Category preview" style="width:100%;height:100%;object-fit:contain"/>
+          <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);padding:5px 10px;font-size:11px;color:#ccc;text-align:center">
+            Category Image Preview
+          </div>
+        </div>
+
+        <div class="img-upload-area" id="categoryImgUploadArea">
+          <input id="cf_image" type="file" accept=".jpg,.jpeg,.png,.webp" onchange="handleCategoryImageUpload(this)"/>
+          <div id="categoryUploadIcon" style="font-size:24px;margin-bottom:8px">🖼️</div>
+          <div id="categoryUploadText" style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">Click to upload category image</div>
+          <div style="font-size:11px;color:var(--muted)">JPG, PNG, WEBP accepted · Max 5MB</div>
+        </div>
+
+        <div id="categorySelectedFileName" style="display:none;margin-top:8px;font-size:12px;color:var(--accent);padding:6px 10px;background:var(--accent-dim);border-radius:6px;border:1px solid rgba(59,130,246,0.2)">
+          ✓ <span id="categoryFileNameText"></span>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Active Status</label>
+          <select id="cf_isActive"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;cursor:pointer">
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+        </div>
+        <div>
+          <label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Sort Order</label>
+          <input id="cf_sortOrder" type="number" min="1" placeholder="1"
+            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none"/>
+        </div>
+      </div>
+
+      <div>
+        <label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Parent Category</label>
+        <select id="cf_parentId"
+          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;cursor:pointer">
+          <option value="">No Parent (Root Category)</option>
+        </select>
+      </div>
+
+
+      <div id="categoryFormError" style="display:none;background:var(--red-dim);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red)"></div>
+
+      <div style="display:flex;gap:10px">
+        <button class="btn-ghost" style="flex:1;padding:11px" onclick="closeCategoryForm()">Cancel</button>
+        <button id="categorySubmitBtn" class="btn-primary" style="flex:2;padding:11px;font-size:14px" onclick="submitCategoryForm()">
+          <span id="categoryBtnText">Add Category</span>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Delete Category Confirm Modal ── -->
+<div class="modal-overlay" id="deleteCategoryModal" onclick="closeDeleteCategoryModalOnBg(event)">
+  <div class="modal" style="width:420px">
+    <div class="modal-head">
+      <div class="modal-title" style="color:var(--red)">Delete Category_</div>
+      <button class="modal-close" onclick="closeDeleteCategoryModal()">✕</button>
+    </div>
+    <div style="padding:28px">
+      <p style="font-size:14px;color:var(--muted);margin-bottom:8px">Are you sure you want to delete</p>
+      <p style="font-size:16px;font-weight:600;margin-bottom:24px" id="deleteCategoryName">—</p>
+      <p style="font-size:12px;color:var(--red);margin-bottom:20px;background:var(--red-dim);padding:10px 14px;border-radius:8px">This is a soft delete. It may fail if active products or child categories still exist.</p>
+      <div style="display:flex;gap:10px">
+        <button class="btn-ghost" style="flex:1;padding:11px" onclick="closeDeleteCategoryModal()">Cancel</button>
+        <button id="confirmDeleteCategoryBtn" style="flex:1;padding:11px;background:var(--red);color:white;border:none;border-radius:8px;font-family:Inter,sans-serif;font-size:14px;font-weight:500;cursor:pointer" onclick="confirmDeleteCategory()">Delete</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <!-- ── Users Modal ── -->
 <div class="modal-overlay" id="usersModal" onclick="closeModalOnBg(event)">
   <div class="modal">
@@ -739,12 +896,548 @@
       closeProductsModal();
       closeProductForm();
       closeDeleteModal();
+      closeCategoriesModal();
+      closeCategoryForm();
+      closeDeleteCategoryModal();
     }
   });
 
   function logout() {
     localStorage.clear();
     window.location.href = 'login.html';
+  }
+
+
+  // ── Categories ─────────────────────────────────────────────────────────────
+  let allCategories = [];
+  let categoriesFetched = false;
+  let editingCategoryId = null;
+  let deletingCategoryId = null;
+
+  function unwrapApiResponse(data) {
+    if (Array.isArray(data)) return data;
+    if (data && typeof data === 'object') {
+      if (Array.isArray(data.data)) return data.data;
+      if (Array.isArray(data.content)) return data.content;
+      if (Array.isArray(data.categories)) return data.categories;
+      if (data.data && typeof data.data === 'object') return data.data;
+    }
+    return data;
+  }
+
+  function categoryDeleted(cat) {
+    return !!(cat?.isDeleted || cat?.deleted || cat?.deletedAt || cat?.deleted_at);
+  }
+
+  function categoryParentName(cat) {
+    if (!cat || !cat.parentId) return 'Root';
+    const parent = allCategories.find(x => String(x.id) === String(cat.parentId));
+    return parent?.name || `Parent ${String(cat.parentId).slice(0, 8)}…`;
+  }
+
+  function categoryStateBadge(cat) {
+    if (categoryDeleted(cat)) return `<span class="badge badge-red">Deleted</span>`;
+    return cat?.isActive === false
+      ? `<span class="badge badge-yellow">Inactive</span>`
+      : `<span class="badge badge-green">Active</span>`;
+  }
+
+  function refreshCategoryImagePreview() {
+    const wrap = document.getElementById('categoryImagePreviewWrap');
+    const img = document.getElementById('categoryImagePreview');
+    const value = (document.getElementById('cf_imageUrl').value || '').trim();
+    if (!value) {
+      wrap.style.display = 'none';
+      img.src = '';
+      return;
+    }
+    img.src = value;
+    wrap.style.display = 'block';
+  }
+
+  function setCategoryUploadState(icon, textLabel, isBusy) {
+    const iconEl = document.getElementById('categoryUploadIcon');
+    const textEl = document.getElementById('categoryUploadText');
+    const area = document.getElementById('categoryImgUploadArea');
+    if (iconEl) iconEl.textContent = icon;
+    if (textEl) textEl.textContent = textLabel;
+    if (area) area.style.opacity = isBusy ? '0.7' : '1';
+  }
+
+  async function handleCategoryImageUpload(input) {
+    const file = input.files && input.files[0];
+    const errEl = document.getElementById('categoryFormError');
+    if (!file) return;
+
+    errEl.style.display = 'none';
+
+    if (file.size > 5 * 1024 * 1024) {
+      errEl.textContent = 'Image must be under 5MB.';
+      errEl.style.display = 'block';
+      input.value = '';
+      return;
+    }
+
+    try {
+      setCategoryUploadState('⏳', 'Uploading image...', true);
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const res = await fetch('/api/images/upload', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token
+        },
+        body: formData
+      });
+
+      if (!res.ok) {
+        let msg = 'Image upload failed';
+        try {
+          const err = await res.json();
+          msg = err?.message || err?.error || err?.data || JSON.stringify(err);
+        } catch {
+          msg = await res.text() || msg;
+        }
+        throw new Error(msg);
+      }
+
+      const data = await res.json();
+      const imageUrl = data?.imageUrl || data?.data?.imageUrl;
+      const publicId = data?.publicId || data?.data?.publicId || '';
+
+      if (!imageUrl) throw new Error('No image URL returned from upload API');
+
+      document.getElementById('cf_imageUrl').value = imageUrl;
+      document.getElementById('cf_imagePublicId').value = publicId;
+      document.getElementById('categorySelectedFileName').style.display = 'block';
+      document.getElementById('categoryFileNameText').textContent = file.name;
+      refreshCategoryImagePreview();
+      setCategoryUploadState('✓', 'Image uploaded', false);
+      setTimeout(() => setCategoryUploadState('🖼️', 'Click to upload category image', false), 2500);
+    } catch (err) {
+      errEl.textContent = err.message || 'Image upload failed';
+      errEl.style.display = 'block';
+      setCategoryUploadState('🖼️', 'Click to upload category image', false);
+    } finally {
+      input.value = '';
+    }
+  }
+
+  async function fetchCategoriesFromApi(filters = {}) {
+    try {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== '' && value !== null && value !== undefined) params.append(key, value);
+      });
+      const url = '/api/categories/admin/all' + (params.toString() ? `?${params.toString()}` : '');
+      const res = await fetch(url, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return null; }
+      if (!res.ok) throw new Error('Status ' + res.status);
+      const raw = await res.json();
+      const list = unwrapApiResponse(raw);
+      return Array.isArray(list) ? list : [];
+    } catch (err) {
+      console.error('Categories fetch error:', err);
+      return null;
+    }
+  }
+
+  function sortCategories(list) {
+    return [...(list || [])].sort((a, b) => {
+      const sa = Number(a?.sortOrder ?? Number.MAX_SAFE_INTEGER);
+      const sb = Number(b?.sortOrder ?? Number.MAX_SAFE_INTEGER);
+      if (sa !== sb) return sa - sb;
+      return String(a?.name || '').localeCompare(String(b?.name || ''));
+    });
+  }
+
+  function buildParentFilterOptions() {
+    const sel = document.getElementById('categoryParentFilter');
+    const current = sel.value;
+    const activeRootsAndParents = sortCategories(allCategories.filter(c => !categoryDeleted(c)));
+    sel.innerHTML = '<option value="">All Parents</option><option value="ROOT">Root Categories</option>' +
+      activeRootsAndParents.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    if ([...sel.options].some(o => o.value === current)) sel.value = current;
+  }
+
+  function buildCategoryParentOptions(selectedId = '', excludeId = null) {
+    const sel = document.getElementById('cf_parentId');
+    const options = sortCategories(allCategories.filter(c => !categoryDeleted(c) && String(c.id) !== String(excludeId || '')))
+      .map(c => `<option value="${c.id}" ${String(selectedId) === String(c.id) ? 'selected' : ''}>${c.name}</option>`)
+      .join('');
+    sel.innerHTML = `<option value="">No Parent (Root Category)</option>${options}`;
+  }
+
+  async function ensureCategoriesLoaded() {
+    if (!categoriesFetched) {
+      const categories = await fetchCategoriesFromApi();
+      if (categories) {
+        allCategories = sortCategories(categories);
+        categoriesFetched = true;
+      }
+    }
+    buildParentFilterOptions();
+  }
+
+  async function openCategoriesModal() {
+    document.getElementById('categoriesModal').classList.add('show');
+    document.body.style.overflow = 'hidden';
+    await ensureCategoriesLoaded();
+    renderCategoriesTable(allCategories);
+  }
+
+  function closeCategoriesModal() {
+    document.getElementById('categoriesModal').classList.remove('show');
+    document.body.style.overflow = '';
+  }
+
+  function closeCategoriesModalOnBg(e) {
+    if (e.target === document.getElementById('categoriesModal')) closeCategoriesModal();
+  }
+
+  function renderCategoriesTable(categories) {
+    const tbody = document.getElementById('allCategoriesTable');
+    const countEl = document.getElementById('modalCategoryCount');
+    const rows = sortCategories(categories || []);
+
+    countEl.textContent = `${rows.length} categor${rows.length === 1 ? 'y' : 'ies'} shown`;
+
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted)">No categories found</td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(c => {
+      const img = c.imageUrl
+        ? `<img src="${c.imageUrl}" alt="${c.name || 'Category'}" style="width:42px;height:42px;border-radius:8px;object-fit:cover;border:1px solid var(--border)"/>`
+        : `<div class="user-av" style="background:var(--accent-dim);color:var(--accent);width:42px;height:42px">🗂️</div>`;
+      return `
+        <tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px">
+              <button class="act" onclick="moveCategoryUp('${c.id}')">↑</button>
+              <button class="act" onclick="moveCategoryDown('${c.id}')">↓</button>
+              <span style="font-family:'Space Mono',monospace">${c.sortOrder ?? '—'}</span>
+            </div>
+          </td>
+          <td>
+            <div style="font-weight:600">${c.name || '—'}</div>
+          </td>
+          <td style="color:var(--muted);font-family:'Space Mono',monospace;font-size:12px">${c.slug || '—'}</td>
+          <td>${img}</td>
+          <td>${categoryStateBadge(c)}</td>
+          <td style="color:var(--muted)">${categoryParentName(c)}</td>
+          <td style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted)">#${c.id || '—'}</td>
+          <td>
+            <div class="action-btns" style="justify-content:center;flex-wrap:wrap">
+              <button class="act" onclick="openCategoryForm('${c.id}')">Edit</button>
+              ${categoryDeleted(c)
+                ? `<button class="act" onclick="restoreCategory('${c.id}')">Restore</button>`
+                : `<button class="act del" onclick="openDeleteCategoryModal('${c.id}')">Delete</button>`}
+            </div>
+          </td>
+        </tr>`;
+    }).join('');
+  }
+
+  async function filterCategories() {
+    const name = (document.getElementById('categorySearchInput').value || '').trim();
+    const isActive = document.getElementById('categoryActiveFilter').value;
+    const isDeleted = document.getElementById('categoryDeletedFilter').value;
+    const parentRaw = document.getElementById('categoryParentFilter').value;
+
+    const filters = {};
+    if (name) filters.name = name;
+    if (isActive !== '') filters.isActive = isActive;
+    if (isDeleted !== '') filters.isDeleted = isDeleted;
+    if (parentRaw === 'ROOT') {
+      filters.parentId = '';
+    } else if (parentRaw) {
+      filters.parentId = parentRaw;
+    }
+
+    // Root filter is easier to handle client-side because empty query param for parentId is unreliable.
+    let categories = await fetchCategoriesFromApi({
+      ...(name ? { name } : {}),
+      ...(isActive !== '' ? { isActive } : {}),
+      ...(isDeleted !== '' ? { isDeleted } : {})
+    });
+
+    if (!categories) categories = [];
+    if (parentRaw === 'ROOT') categories = categories.filter(c => !c.parentId);
+    else if (parentRaw) categories = categories.filter(c => String(c.parentId || '') === String(parentRaw));
+
+    renderCategoriesTable(categories);
+  }
+
+  function clearCategoryFilters() {
+    document.getElementById('categorySearchInput').value = '';
+    document.getElementById('categoryActiveFilter').value = '';
+    document.getElementById('categoryDeletedFilter').value = '';
+    document.getElementById('categoryParentFilter').value = '';
+    renderCategoriesTable(allCategories);
+  }
+
+  function openCategoryForm(id = null) {
+    editingCategoryId = id;
+    const errEl = document.getElementById('categoryFormError');
+    errEl.style.display = 'none';
+
+    if (id) {
+      const c = allCategories.find(x => String(x.id) === String(id));
+      document.getElementById('categoryFormTitle').textContent = 'Edit Category_';
+      document.getElementById('categoryBtnText').textContent = 'Save Changes';
+      document.getElementById('cf_name').value = c?.name || '';
+      document.getElementById('cf_imageUrl').value = c?.imageUrl || '';
+      document.getElementById('cf_imagePublicId').value = '';
+      document.getElementById('categorySelectedFileName').style.display = 'none';
+      document.getElementById('cf_isActive').value = String(c?.isActive ?? true);
+      document.getElementById('cf_sortOrder').value = c?.sortOrder ?? '';
+      buildCategoryParentOptions(c?.parentId || '', id);
+    } else {
+      document.getElementById('categoryFormTitle').textContent = 'Add Category_';
+      document.getElementById('categoryBtnText').textContent = 'Add Category';
+      document.getElementById('cf_name').value = '';
+      document.getElementById('cf_imageUrl').value = '';
+      document.getElementById('cf_imagePublicId').value = '';
+      document.getElementById('categorySelectedFileName').style.display = 'none';
+      document.getElementById('cf_isActive').value = 'true';
+      document.getElementById('cf_sortOrder').value = allCategories.length ? Math.max(...allCategories.map(c => Number(c.sortOrder || 0))) + 1 : 1;
+      buildCategoryParentOptions('', null);
+    }
+
+    refreshCategoryImagePreview();
+    document.getElementById('categoryFormModal').classList.add('show');
+  }
+
+  function closeCategoryForm() {
+    document.getElementById('categoryFormModal').classList.remove('show');
+    setCategoryUploadState('🖼️', 'Click to upload category image', false);
+  }
+
+  function closeCategoryFormOnBg(e) {
+    if (e.target === document.getElementById('categoryFormModal')) closeCategoryForm();
+  }
+
+  async function submitCategoryForm() {
+    const name = document.getElementById('cf_name').value.trim();
+    const imageUrl = document.getElementById('cf_imageUrl').value.trim();
+    const isActive = document.getElementById('cf_isActive').value === 'true';
+    const sortOrderRaw = document.getElementById('cf_sortOrder').value;
+    const parentId = document.getElementById('cf_parentId').value || null;
+    const errEl = document.getElementById('categoryFormError');
+    const btn = document.getElementById('categorySubmitBtn');
+    const isEdit = editingCategoryId !== null;
+
+    errEl.style.display = 'none';
+
+    if (!name) {
+      errEl.textContent = 'Category name is required.';
+      errEl.style.display = 'block';
+      return;
+    }
+
+    const payload = {};
+    if (isEdit) {
+      payload.name = name;
+      payload.imageUrl = imageUrl || null;
+      payload.isActive = isActive;
+      payload.sortOrder = sortOrderRaw ? Number(sortOrderRaw) : null;
+      payload.parentId = parentId;
+    } else {
+      payload.name = name;
+      payload.imageUrl = imageUrl || null;
+      payload.isActive = isActive;
+      if (sortOrderRaw) payload.sortOrder = Number(sortOrderRaw);
+      payload.parentId = parentId;
+    }
+
+    btn.disabled = true;
+    document.getElementById('categoryBtnText').textContent = isEdit ? 'Saving...' : 'Adding...';
+
+    try {
+      const url = isEdit ? `/api/categories/${editingCategoryId}` : '/api/categories';
+      const method = isEdit ? 'PATCH' : 'POST';
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        let msg = 'Failed to save category';
+        try {
+          const err = await res.json();
+          msg = err?.message || err?.error || err?.data || JSON.stringify(err);
+        } catch {
+          msg = await res.text() || msg;
+        }
+        throw new Error(msg);
+      }
+
+      closeCategoryForm();
+      categoriesFetched = false;
+      await ensureCategoriesLoaded();
+      renderCategoriesTable(allCategories);
+      populateCategoryFilterFromAdmin();
+    } catch (err) {
+      console.error('Category submit error:', err);
+      errEl.textContent = err.message || 'Failed to save category';
+      errEl.style.display = 'block';
+    } finally {
+      btn.disabled = false;
+      document.getElementById('categoryBtnText').textContent = isEdit ? 'Save Changes' : 'Add Category';
+    }
+  }
+
+  function openDeleteCategoryModal(id) {
+    deletingCategoryId = id;
+    const c = allCategories.find(x => String(x.id) === String(id));
+    document.getElementById('deleteCategoryName').textContent = c?.name || 'this category';
+    document.getElementById('deleteCategoryModal').classList.add('show');
+  }
+
+  function closeDeleteCategoryModal() {
+    document.getElementById('deleteCategoryModal').classList.remove('show');
+    deletingCategoryId = null;
+  }
+
+  function closeDeleteCategoryModalOnBg(e) {
+    if (e.target === document.getElementById('deleteCategoryModal')) closeDeleteCategoryModal();
+  }
+
+  async function confirmDeleteCategory() {
+    if (!deletingCategoryId) return;
+    const btn = document.getElementById('confirmDeleteCategoryBtn');
+    btn.disabled = true;
+    btn.textContent = 'Deleting...';
+
+    try {
+      const res = await fetch(`/api/categories/${deletingCategoryId}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!(res.ok || res.status === 204)) {
+        let msg = 'Failed to delete category';
+        try {
+          const err = await res.json();
+          msg = err?.message || err?.error || err?.data || JSON.stringify(err);
+        } catch {
+          msg = await res.text() || msg;
+        }
+        throw new Error(msg);
+      }
+
+      closeDeleteCategoryModal();
+      categoriesFetched = false;
+      await ensureCategoriesLoaded();
+      renderCategoriesTable(allCategories);
+      populateCategoryFilterFromAdmin();
+    } catch (err) {
+      alert(err.message || 'Failed to delete category');
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Delete';
+    }
+  }
+
+  async function restoreCategory(id) {
+    try {
+      const res = await fetch(`/api/categories/${id}/restore`, {
+        method: 'PATCH',
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if (!res.ok) {
+        let msg = 'Failed to restore category';
+        try {
+          const err = await res.json();
+          msg = err?.message || err?.error || err?.data || JSON.stringify(err);
+        } catch {
+          msg = await res.text() || msg;
+        }
+        throw new Error(msg);
+      }
+      categoriesFetched = false;
+      await ensureCategoriesLoaded();
+      renderCategoriesTable(allCategories);
+      populateCategoryFilterFromAdmin();
+    } catch (err) {
+      alert(err.message || 'Failed to restore category');
+    }
+  }
+
+  function reindexCategorySortOrder() {
+    allCategories = sortCategories(allCategories).map((c, idx) => ({ ...c, sortOrder: idx + 1 }));
+  }
+
+  function moveCategoryUp(id) {
+    const sorted = sortCategories(allCategories);
+    const idx = sorted.findIndex(c => String(c.id) === String(id));
+    if (idx <= 0) return;
+    [sorted[idx - 1], sorted[idx]] = [sorted[idx], sorted[idx - 1]];
+    allCategories = sorted.map((c, i) => ({ ...c, sortOrder: i + 1 }));
+    renderCategoriesTable(allCategories);
+  }
+
+  function moveCategoryDown(id) {
+    const sorted = sortCategories(allCategories);
+    const idx = sorted.findIndex(c => String(c.id) === String(id));
+    if (idx === -1 || idx >= sorted.length - 1) return;
+    [sorted[idx], sorted[idx + 1]] = [sorted[idx + 1], sorted[idx]];
+    allCategories = sorted.map((c, i) => ({ ...c, sortOrder: i + 1 }));
+    renderCategoriesTable(allCategories);
+  }
+
+  async function saveCategoryReorder() {
+    try {
+      const orderedIds = sortCategories(allCategories).map(c => c.id).filter(Boolean);
+      if (!orderedIds.length) return;
+      const res = await fetch('/api/categories/reorder', {
+        method: 'PATCH',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ orderedIds })
+      });
+      if (!res.ok) {
+        let msg = 'Failed to reorder categories';
+        try {
+          const err = await res.json();
+          msg = err?.message || err?.error || err?.data || JSON.stringify(err);
+        } catch {
+          msg = await res.text() || msg;
+        }
+        throw new Error(msg);
+      }
+      categoriesFetched = false;
+      await ensureCategoriesLoaded();
+      renderCategoriesTable(allCategories);
+      populateCategoryFilterFromAdmin();
+      alert('Categories reordered successfully');
+    } catch (err) {
+      alert(err.message || 'Failed to reorder categories');
+    }
+  }
+
+  async function populateCategoryFilterFromAdmin() {
+    await ensureCategoriesLoaded();
+    const sel = document.getElementById('categoryFilter');
+    if (!sel) return;
+    const current = sel.value;
+    const cats = sortCategories(allCategories)
+      .filter(c => !categoryDeleted(c) && c.isActive !== false)
+      .map(c => c.name)
+      .filter(Boolean);
+    sel.innerHTML = '<option value="">All Categories</option>' +
+      cats.map(c => `<option value="${c}" ${c===current?'selected':''}>${c}</option>`).join('');
   }
 
   // ── Revenue ────────────────────────────────────────────────────────────────
@@ -961,6 +1654,7 @@
     const countEl = document.getElementById('modalProductCount');
     countEl.textContent = `${filteredProducts.length} product${filteredProducts.length !== 1 ? 's' : ''} in catalogue`;
     populateCategoryFilter(products);
+    populateCategoryFilterFromAdmin();
     renderProductsTable(filteredProducts);
   }
 
@@ -1000,9 +1694,9 @@
   function populateCategoryFilter(products) {
     const sel = document.getElementById('categoryFilter');
     const current = sel.value;
-    const cats = [...new Set((products || []).map(p => p.category).filter(Boolean))].sort();
+    const localCats = [...new Set((products || []).map(p => p.category).filter(Boolean))].sort();
     sel.innerHTML = '<option value="">All Categories</option>' +
-      cats.map(c => `<option value="${c}" ${c===current?'selected':''}>${c}</option>`).join('');
+      localCats.map(c => `<option value="${c}" ${c===current?'selected':''}>${c}</option>`).join('');
   }
 
   function filterProducts() {
@@ -1555,6 +2249,7 @@
   // ── Init ───────────────────────────────────────────────────────────────────
   loadRevenue();
   loadItemSales();
+  populateCategoryFilterFromAdmin();
   refreshActivity();
   setInterval(refreshActivity, 30000);
 </script>

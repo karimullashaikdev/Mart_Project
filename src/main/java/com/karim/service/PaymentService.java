@@ -1,9 +1,11 @@
 package com.karim.service;
 
+import java.util.List;
 import java.util.UUID;
 
 import com.karim.dto.InvoiceResponse;
 import com.karim.dto.PaymentResponse;
+import com.karim.dto.RazorpayWebhookLogResponse;
 import com.karim.enums.PaymentMethod;
 
 public interface PaymentService {
@@ -13,6 +15,15 @@ public interface PaymentService {
 	PaymentResponse sendPaymentOtp(UUID paymentId, UUID userId);
 
 	PaymentResponse verifyPaymentOtp(UUID paymentId, UUID userId, String otp);
+
+	PaymentResponse verifyRazorpayPayment(UUID paymentId, UUID userId, String razorpayOrderId, String razorpayPaymentId,
+			String razorpaySignature, UUID actorId);
+
+	void handleRazorpayWebhook(String payload, String signature);
+
+	RazorpayWebhookLogResponse getWebhookLogById(UUID webhookLogId);
+
+	List<RazorpayWebhookLogResponse> getAllWebhookLogs();
 
 	void confirmPaymentSuccess(UUID paymentId, String gatewayTxnId, String response, UUID actorId);
 
@@ -29,10 +40,10 @@ public interface PaymentService {
 	void failRefund(UUID refundId, String reason, UUID actorId);
 
 	InvoiceResponse generateInvoice(UUID orderId, UUID paymentId, UUID actorId);
-	
+
 	InvoiceResponse regenerateInvoice(UUID invoiceId, UUID actorId);
-	
+
 	InvoiceResponse getInvoice(UUID invoiceId, UUID userId);
-	
+
 	void softDeletePayment(UUID paymentId, UUID actorId);
 }

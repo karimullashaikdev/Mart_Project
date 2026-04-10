@@ -3,9 +3,11 @@ package com.karim.entity;
 import jakarta.persistence.*;
 import lombok.Data;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
@@ -20,6 +22,7 @@ public class Category {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
+	 @JdbcTypeCode(Types.VARCHAR) 
 	@Column(columnDefinition = "CHAR(36)")
 	private UUID id;
 
@@ -49,9 +52,11 @@ public class Category {
 
 	// 🔁 Audit Fields
 	@Column(name = "created_by")
+	 @JdbcTypeCode(Types.VARCHAR) 
 	private UUID createdBy;
 
 	@Column(name = "updated_by")
+	 @JdbcTypeCode(Types.VARCHAR) 
 	private UUID updatedBy;
 
 	@Column(name = "created_at")
@@ -68,6 +73,7 @@ public class Category {
 	private LocalDateTime deletedAt;
 
 	@Column(name = "deleted_by")
+	 @JdbcTypeCode(Types.VARCHAR) 
 	private UUID deletedBy;
 
 	// ✅ Lifecycle Hooks

@@ -70,48 +70,42 @@ public class SecurityConfig {
 
 	        .authorizeHttpRequests(auth -> auth
 
-	        		
-	        		// ── SWAGGER ──────────────────────────────────
-	        	    .requestMatchers(
-	        	        "/v3/api-docs/**",
-	        	        "/swagger-ui/**",
-	        	        "/swagger-ui.html",
-	        	        "/swagger-resources/**",
-	        	        "/webjars/**"
-	        	    ).permitAll()
-	            // ── PUBLIC ROUTES ──────────────────────────────
-	            .requestMatchers(
-	                "/register.html",
-	                "/login.html",
-	                "/forgot-password.html",
-	                "/activate.html",
-	                "/reset-password.html",
-	                "/products.html",
-	                "/delivery-dashboard.html",
-	                "/admin.html"
-	            ).permitAll()
+	                .requestMatchers(
+	                    "/v3/api-docs/**",
+	                    "/swagger-ui/**",
+	                    "/swagger-ui.html",
+	                    "/swagger-resources/**",
+	                    "/webjars/**"
+	                ).permitAll()
 
-	            // ── AUTH APIs ─────────────────────────────────
-	            .requestMatchers("/api/auth/**").permitAll()
+	                .requestMatchers(
+	                    "/register.html",
+	                    "/login.html",
+	                    "/forgot-password.html",
+	                    "/activate.html",
+	                    "/reset-password.html",
+	                    "/products.html",
+	                    "/delivery-dashboard.html",
+	                    "/admin.html"
+	                ).permitAll()
 
-	            // ── IMAGE UPLOAD (if public) ──────────────────
-	            .requestMatchers(HttpMethod.POST, "/api/images/upload").permitAll()
+	                .requestMatchers("/api/auth/**").permitAll()
 
-	            // ── PRODUCTS (PUBLIC READ) ────────────────────
-	            .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**")
-	            .permitAll()
+	                .requestMatchers(HttpMethod.POST, "/api/images/upload").permitAll()
 
-	            // ── USER PROFILE (IMPORTANT FIX) ──────────────
-	            .requestMatchers(HttpMethod.GET, "/api/users/me/**").authenticated()
-	            .requestMatchers(HttpMethod.POST, "/api/users/me/**").authenticated()
-	            .requestMatchers(HttpMethod.PUT, "/api/users/me/**").authenticated()
-	            .requestMatchers(HttpMethod.PATCH, "/api/users/me/**").authenticated()
+	                .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**").permitAll()
 
-	            // ── ADMIN ─────────────────────────────────────
-	            .requestMatchers("/api/admin/**").hasRole("ADMIN")
+	                .requestMatchers(HttpMethod.GET, "/api/users/me/**").authenticated()
+	                .requestMatchers(HttpMethod.POST, "/api/users/me/**").authenticated()
+	                .requestMatchers(HttpMethod.PUT, "/api/users/me/**").authenticated()
+	                .requestMatchers(HttpMethod.PATCH, "/api/users/me/**").authenticated()
 
-	            // ── EVERYTHING ELSE ───────────────────────────
-	            .anyRequest().authenticated()
+	                .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
+	                .requestMatchers("/api/payments/**").authenticated()
+
+	                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+
+	                .anyRequest().authenticated()
 	        )
 
 	        .authenticationProvider(authenticationProvider())

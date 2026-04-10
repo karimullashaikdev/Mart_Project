@@ -9,17 +9,13 @@ import com.karim.entity.Payment;
 
 public interface PaymentRepository extends JpaRepository<Payment, UUID> {
 
-    // ✅ findById
-    Optional<Payment> findById(UUID id);
+	Optional<Payment> findById(UUID id);
 
-    // ✅ findByOrder
-    Optional<Payment> findByOrderId(UUID orderId);
+	Optional<Payment> findByOrderId(UUID orderId);
 
-    // ✅ findByReference
-    Optional<Payment> findByPaymentReference(String paymentReference);
+	Optional<Payment> findByPaymentReference(String paymentReference);
 
-    // ✅ create(data) → save()
+	Optional<Payment> findByGatewayOrderId(String gatewayOrderId);
 
-    // ✅ update(id, data) → handled via save() in service
-
+	Optional<Payment> findByGatewayPaymentId(String gatewayPaymentId);
 }
