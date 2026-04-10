@@ -1,4 +1,4 @@
-package com.karim.anootation;
+package com.karim.annotation;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;

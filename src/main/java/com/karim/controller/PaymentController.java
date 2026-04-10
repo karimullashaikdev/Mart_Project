@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.karim.anootation.CurrentUser;
+import com.karim.annotation.CurrentUser;
 import com.karim.dto.ApiResponse;
 import com.karim.dto.InitiatePaymentRequest;
 import com.karim.dto.PaymentResponse;

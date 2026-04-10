@@ -1384,7 +1384,7 @@
 		<input class="search-box" type="text" placeholder="🔍  Search products..." oninput="onSearch()"
 			id="searchInput" />
 		<div id="filterControls" style="display:flex;gap:8px;flex-wrap:wrap">
-			<button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+			<button class="filter-btn active" onclick="setFilter('all', '', this)">All</button>
 		</div>
 		<select class="page-size-select" id="pageSizeSelect" onchange="onPageSizeChange()">
 			<option value="10">10 / page</option>
@@ -1482,6 +1482,8 @@
 		let totalElements = 0;
 		let pageSize = 20;
 		let currentFilter = 'all';
+		let categoryMap = [];
+		let currentCategoryId = '';
 		let searchQuery = '';
 		let searchTimer = null;
 
@@ -2374,7 +2376,8 @@
 			currentPage = page;
 			try {
 				const params = new URLSearchParams({page, size: pageSize});
-				if (currentFilter && currentFilter !== 'all') params.set('category', currentFilter);
+				if (currentCategoryId) params.set('categoryId', currentCategoryId);
+				params.set('isActive', 'true');
 				if (searchQuery && searchQuery.trim()) params.set('search', searchQuery.trim());
 
 				const res = await apiFetch(`/api/products?${params.toString()}`, {
@@ -2413,12 +2416,12 @@
 			grid.innerHTML = products.map((p, i) => {
 				const name = p.name || p.productName || 'Product';
 				const desc = p.description || p.desc || '';
-				const price = p.price || p.amount || 0;
-				const category = p.category || p.categoryName || '';
-				const imageUrl = p.imageUrl || p.image || p.imgUrl || null;
+				const price = p.sellingPrice ?? p.price ?? p.amount ?? 0;
+				const category = p.categoryName || p.category || lookupCategoryName(p.categoryId) || '';
+				const imageUrl = (Array.isArray(p.images) && p.images.length ? p.images[0] : null) || p.imageUrl || p.image || p.imgUrl || null;
 				const emoji = categoryEmoji(category);
-				const stock = p.stock ?? p.quantity ?? null;
-				const badge = stock === 0 ? 'Out of Stock' : (p.badge || null);
+				const stock = p.availableQuantity ?? p.stock ?? p.quantity ?? 0;
+				const badge = stock === 0 ? 'Out of Stock' : (!p.isActive ? 'Inactive' : (p.badge || null));
 				return `
         <div class="product-card" style="animation-delay:${i * 0.06}s">
           <div class="product-img" style="${imageUrl ? `background:url('${imageUrl}') center/cover no-repeat` : ''}">
@@ -2520,20 +2523,36 @@
 		   } catch (err) {
 		     console.warn('Could not load category filters:', err);
 		     document.getElementById('filterControls').innerHTML = `
-		       <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+		       <button class="filter-btn active" onclick="setFilter('all', '', this)">All</button>
 		     `;
 		   }
 		 }
 
-		 function cap(str) {
+		 function lookupCategoryName(categoryId) {
+			const item = categoryMap.find(c => String(c.id) === String(categoryId));
+			return item ? item.name : '';
+		}
+
+		async function getProductById(productId) {
+			const res = await apiFetch(`/api/products/${encodeURIComponent(productId)}`, {method:'GET', headers:{'Content-Type':'application/json'}});
+			return res.json();
+		}
+
+		async function getProductBySlug(slug) {
+			const res = await apiFetch(`/api/products/slug/${encodeURIComponent(slug)}`, {method:'GET', headers:{'Content-Type':'application/json'}});
+			return res.json();
+		}
+
+		function cap(str) {
 		     return String(str)
 		       .split(' ')
 		       .map(word => word ? word.charAt(0).toUpperCase() + word.slice(1) : '')
 		       .join(' ');
 		   }
 		   
-		function setFilter(cat, el) {
+		function setFilter(cat, categoryId, el) {
 			currentFilter = cat;
+			currentCategoryId = categoryId || '';
 			document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
 			el.classList.add('active');
 			loadProducts(0);

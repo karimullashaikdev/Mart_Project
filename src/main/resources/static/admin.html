@@ -376,7 +376,7 @@
       <table>
         <thead>
           <tr>
-            <th>ID</th><th>Image</th><th>Name</th><th>Brand</th><th>Category</th><th>Price</th><th>Stock</th><th>Status</th><th style="text-align:center">Actions</th>
+            <th>ID</th><th>Image</th><th>Name</th><th>SKU</th><th>Category</th><th>Selling Price</th><th>Stock</th><th>Status</th><th style="text-align:center">Actions</th>
           </tr>
         </thead>
         <tbody id="allProductsTable">
@@ -396,78 +396,14 @@
       <button class="modal-close" onclick="closeProductForm()">✕</button>
     </div>
     <div class="modal-body" style="padding:28px;display:flex;flex-direction:column;gap:18px">
-
-      <!-- Product Name -->
-      <div>
-        <label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Product Name *</label>
-        <input id="pf_name" type="text" placeholder="e.g. Wireless Headphones"
-          style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color 0.2s"
-          onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
-      </div>
-
-      <!-- Brand + Category -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <div>
-          <label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Brand</label>
-          <input id="pf_brand" type="text" placeholder="e.g. Sony"
-            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color 0.2s"
-            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
-        </div>
-        <div>
-          <label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Category *</label>
-          <input id="pf_category" type="text" placeholder="e.g. Electronics"
-            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color 0.2s"
-            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
-        </div>
-      </div>
-
-      <!-- Price + Stock -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-        <div>
-          <label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Price (₹) *</label>
-          <input id="pf_price" type="number" min="0" step="0.01" placeholder="0.00"
-            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color 0.2s"
-            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
-        </div>
-        <div>
-          <label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Stock *</label>
-          <input id="pf_stock" type="number" min="0" placeholder="0"
-            style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color 0.2s"
-            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
-        </div>
-      </div>
-
-      <!-- ✅ Product Image Upload -->
-      <div>
-        <label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">
-          Product Image
-          <span id="imageRequiredStar" style="color:var(--red)"> *</span>
-          <span id="imageOptionalHint" style="display:none;font-size:11px;color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0"> (optional — keep blank to retain current)</span>
-        </label>
-
-        <!-- Image preview — shown after selecting or when editing existing product -->
-        <div id="imagePreviewBox" style="display:none;margin-bottom:10px;border:1px solid var(--border);border-radius:8px;overflow:hidden;height:150px;background:var(--bg);position:relative">
-          <img id="imagePreviewImg" src="" alt="preview" style="width:100%;height:100%;object-fit:cover"/>
-          <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.5);padding:5px 10px;font-size:11px;color:#ccc;text-align:center">
-            Image Preview
-          </div>
-        </div>
-
-        <!-- Drag & drop / click to upload area -->
-        <div class="img-upload-area" id="imgUploadArea">
-          <input id="pf_image" type="file" accept=".jpg,.jpeg,.png,.webp" onchange="previewImage(this)"/>
-          <div style="font-size:24px;margin-bottom:8px">🖼️</div>
-          <div style="font-size:13px;font-weight:500;color:var(--text);margin-bottom:4px">Click to select image</div>
-          <div style="font-size:11px;color:var(--muted)">JPG, PNG, WEBP accepted</div>
-        </div>
-
-        <!-- Selected file name display -->
-        <div id="selectedFileName" style="display:none;margin-top:8px;font-size:12px;color:var(--accent);padding:6px 10px;background:var(--accent-dim);border-radius:6px;border:1px solid rgba(59,130,246,0.2)">
-          ✓ <span id="fileNameText"></span>
-        </div>
-      </div>
-
-      <!-- Error message -->
+      <div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Product Name *</label><input id="pf_name" type="text" placeholder="e.g. Wireless Headphones" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color 0.2s"/></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">SKU *</label><input id="pf_sku" type="text" placeholder="e.g. SKU-1001" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color 0.2s"/></div><div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Barcode</label><input id="pf_barcode" type="text" placeholder="e.g. 8901234567890" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color 0.2s"/></div></div>
+      <div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Description</label><textarea id="pf_description" rows="3" placeholder="Short product description" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;resize:vertical"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Category *</label><select id="pf_categoryId" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none"><option value="">Select Category</option></select></div><div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Unit *</label><select id="pf_unit" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none"><option value="">Select Unit</option><option value="PCS">PCS</option><option value="KG">KG</option><option value="G">G</option><option value="LTR">LTR</option></select></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">MRP</label><input id="pf_mrp" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color 0.2s"/></div><div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Selling Price</label><input id="pf_sellingPrice" type="number" min="0" step="0.01" placeholder="0.00" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color 0.2s"/></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Tax Percent</label><input id="pf_taxPercent" type="number" min="0" step="0.01" placeholder="0" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color 0.2s"/></div><div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Unit Value</label><input id="pf_unitValue" type="number" min="0" step="0.01" placeholder="e.g. 1" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;transition:border-color 0.2s"/></div></div>
+      <div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Image URLs</label><textarea id="pf_images" rows="3" placeholder="Paste one or more image URLs separated by commas" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none;resize:vertical"></textarea></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Active Status</label><select id="pf_isActive" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:11px 14px;color:var(--text);font-family:Inter,sans-serif;font-size:14px;outline:none"><option value="true">Active</option><option value="false">Inactive</option></select></div><div><label style="display:block;font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted);margin-bottom:7px">Quick Price API</label><button class="btn-ghost" style="width:100%;padding:11px" onclick="openBulkPricePrompt()">Bulk Price Update</button></div></div>
       <div id="formError" style="display:none;background:var(--red-dim);border:1px solid rgba(239,68,68,0.25);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--red)"></div>
 
       <!-- Action buttons -->
@@ -769,6 +705,9 @@
   const adminName = localStorage.getItem('username') || 'Admin';
   document.getElementById('adminName').textContent = adminName;
 
+  function getActorId() { return localStorage.getItem('userId') || localStorage.getItem('id') || localStorage.getItem('adminId') || ''; }
+  function parseProductApiError(raw) { try { const obj = JSON.parse(raw); return obj.message || obj.error || obj.data || raw; } catch { return raw || 'Request failed'; } }
+
   // ── Colours & helpers ──────────────────────────────────────────────────────
   const colors = ['#3b82f6','#22c55e','#eab308','#a855f7','#ef4444','#f97316','#06b6d4','#ec4899'];
 
@@ -801,7 +740,7 @@
   async function fetchUsers() {
     try {
       const res = await fetch('/api/user', {
-        headers: { 'Authorization': 'Bearer ' + token }
+        headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': getActorId() }
       });
       if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return []; }
       if (!res.ok) throw new Error('Status ' + res.status);
@@ -1033,7 +972,7 @@
       });
       const url = '/api/categories/admin/all' + (params.toString() ? `?${params.toString()}` : '');
       const res = await fetch(url, {
-        headers: { 'Authorization': 'Bearer ' + token }
+        headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': getActorId() }
       });
       if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return null; }
       if (!res.ok) throw new Error('Status ' + res.status);
@@ -1322,7 +1261,7 @@
     try {
       const res = await fetch(`/api/categories/${deletingCategoryId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + token }
+        headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': getActorId() }
       });
       if (!(res.ok || res.status === 204)) {
         let msg = 'Failed to delete category';
@@ -1352,7 +1291,7 @@
     try {
       const res = await fetch(`/api/categories/${id}/restore`, {
         method: 'PATCH',
-        headers: { 'Authorization': 'Bearer ' + token }
+        headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': getActorId() }
       });
       if (!res.ok) {
         let msg = 'Failed to restore category';
@@ -1427,6 +1366,19 @@
     }
   }
 
+  function categoryNameFromId(categoryId) {
+    const c = allCategories.find(x => String(x.id) === String(categoryId));
+    return c?.name || '';
+  }
+
+  async function populateProductCategorySelect(selectedId = '') {
+    await ensureCategoriesLoaded();
+    const sel = document.getElementById('pf_categoryId');
+    if (!sel) return;
+    const cats = sortCategories(allCategories).filter(c => !categoryDeleted(c) && c.isActive !== false);
+    sel.innerHTML = '<option value="">Select Category</option>' + cats.map(c => `<option value="${c.id}" ${String(c.id)===String(selectedId)?'selected':''}>${c.name}</option>`).join('');
+  }
+
   async function populateCategoryFilterFromAdmin() {
     await ensureCategoriesLoaded();
     const sel = document.getElementById('categoryFilter');
@@ -1434,17 +1386,16 @@
     const current = sel.value;
     const cats = sortCategories(allCategories)
       .filter(c => !categoryDeleted(c) && c.isActive !== false)
-      .map(c => c.name)
-      .filter(Boolean);
+      .filter(c => !categoryDeleted(c) && c.isActive !== false);
     sel.innerHTML = '<option value="">All Categories</option>' +
-      cats.map(c => `<option value="${c}" ${c===current?'selected':''}>${c}</option>`).join('');
+      cats.map(c => `<option value="${c.id}" ${String(c.id)===String(current)?'selected':''}>${c.name}</option>`).join('');
   }
 
   // ── Revenue ────────────────────────────────────────────────────────────────
   async function loadRevenue() {
     try {
       const res = await fetch('/api/admin/revenue', {
-        headers: { 'Authorization': 'Bearer ' + token }
+        headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': getActorId() }
       });
       if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return; }
       if (!res.ok) throw new Error('Status ' + res.status);
@@ -1467,7 +1418,7 @@
   async function fetchOrders() {
     try {
       const res = await fetch('/api/order/all', {
-        headers: { 'Authorization': 'Bearer ' + token }
+        headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': getActorId() }
       });
       if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return null; }
       if (!res.ok) throw new Error('Status ' + res.status);
@@ -1606,12 +1557,13 @@
   async function fetchProducts() {
     try {
       const res = await fetch('/api/products?page=0&size=1000', {
-        headers: { 'Authorization': 'Bearer ' + token }
+        headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': getActorId() }
       });
       if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return null; }
       if (!res.ok) throw new Error('Status ' + res.status);
       const data = await res.json();
-      return Array.isArray(data) ? data : (data.products || data.content || data.data || []);
+      const rows = Array.isArray(data) ? data : (data.products || data.content || data.data || []);
+      return (rows || []).map(p => ({ ...p, price: p.sellingPrice ?? p.price ?? 0, stock: p.availableQuantity ?? p.stock ?? 0, imageUrl: (Array.isArray(p.images) && p.images.length ? p.images[0] : null) || p.imageUrl || '', category: p.categoryName || categoryNameFromId(p.categoryId) || p.category || '—' }));
     } catch (err) {
       console.error('Products fetch error:', err);
       return null;
@@ -1665,9 +1617,10 @@
       return;
     }
     tbody.innerHTML = products.map((p, i) => {
-      const stock     = p.stock ?? 0;
-      const statusCls = stock === 0 ? 'badge-yellow' : 'badge-green';
-      const statusTxt = stock === 0 ? 'Out of Stock'  : 'In Stock';
+      const stock = p.availableQuantity ?? p.stock ?? 0;
+      const isActive = p.isActive !== false;
+      const statusCls = !isActive ? 'badge-red' : (stock === 0 ? 'badge-yellow' : 'badge-green');
+      const statusTxt = !isActive ? 'Inactive' : (stock === 0 ? 'Out of Stock' : 'In Stock');
       // ✅ show product image thumbnail if available, else emoji
       const imgCell = p.imageUrl
         ? `<img src="${p.imageUrl}" alt="${p.name}" style="width:36px;height:36px;border-radius:6px;object-fit:cover;border:1px solid var(--border)"/>`
@@ -1676,14 +1629,14 @@
         <td style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted)">#${p.id}</td>
         <td>${imgCell}</td>
         <td><div style="font-weight:500">${p.name}</div></td>
-        <td style="color:var(--muted)">${p.brand ?? '—'}</td>
-        <td><span class="badge badge-blue">${p.category ?? '—'}</span></td>
-        <td style="font-family:'Space Mono',monospace;font-size:13px">₹${Number(p.price ?? 0).toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+        <td style="color:var(--muted)">${p.sku ?? '—'}</td>
+        <td><span class="badge badge-blue">${categoryNameFromId(p.categoryId) || p.category || '—'}</span></td>
+        <td style="font-family:'Space Mono',monospace;font-size:13px">₹${Number(p.sellingPrice ?? p.price ?? 0).toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
         <td style="text-align:center;font-family:'Space Mono',monospace;color:${stock<=5?'var(--yellow)':'var(--text)'}">${stock}</td>
         <td><span class="badge ${statusCls}">${statusTxt}</span></td>
         <td>
           <div class="action-btns" style="justify-content:center">
-            <button class="act" onclick="openEditForm(${p.id})">✏ Edit</button>
+            <button class="act" onclick="openEditForm('${p.id}')">✏ Edit</button><button class="act" onclick="toggleProductActive('${p.id}')">⏻ Toggle</button>
             <button class="act del" onclick="openDeleteConfirm(${p.id}, '${p.name.replace(/'/g,"\\'")}')">🗑 Delete</button>
           </div>
         </td>
@@ -1703,8 +1656,8 @@
     const q   = (document.getElementById('productSearch').value || '').toLowerCase();
     const cat = document.getElementById('categoryFilter').value;
     let results = allProducts;
-    if (q)   results = results.filter(p => (p.name||'').toLowerCase().includes(q) || (p.brand||'').toLowerCase().includes(q));
-    if (cat) results = results.filter(p => p.category === cat);
+    if (q) results = results.filter(p => (p.name||'').toLowerCase().includes(q) || (p.sku||'').toLowerCase().includes(q));
+    if (cat) results = results.filter(p => String(p.categoryId || '') === String(cat));
     renderProductsTable(results);
     document.getElementById('modalProductCount').textContent = `${results.length} of ${allProducts.length} products`;
   }
@@ -1748,48 +1701,41 @@
     document.getElementById('formModalTitle').textContent = 'Add Product_';
     document.getElementById('formBtnText').textContent    = 'Add Product';
     document.getElementById('pf_name').value     = '';
-    document.getElementById('pf_brand').value    = '';
-    document.getElementById('pf_category').value = '';
-    document.getElementById('pf_price').value    = '';
-    document.getElementById('pf_stock').value    = '';
-    document.getElementById('pf_image').value    = '';
-    document.getElementById('imagePreviewBox').style.display    = 'none';
-    document.getElementById('selectedFileName').style.display   = 'none';
-    document.getElementById('imageRequiredStar').style.display  = 'inline';   // show * (mandatory)
-    document.getElementById('imageOptionalHint').style.display  = 'none';     // hide optional hint
-    document.getElementById('formError').style.display = 'none';
+    document.getElementById('pf_sku').value='';
+    document.getElementById('pf_barcode').value='';
+    document.getElementById('pf_description').value='';
+    document.getElementById('pf_categoryId').value='';
+    document.getElementById('pf_unit').value='';
+    document.getElementById('pf_mrp').value='';
+    document.getElementById('pf_sellingPrice').value='';
+    document.getElementById('pf_taxPercent').value='';
+    document.getElementById('pf_unitValue').value='';
+    document.getElementById('pf_images').value='';
+    document.getElementById('pf_isActive').value='true';
+    document.getElementById('formError').style.display='none';
+    populateProductCategorySelect();
     document.getElementById('productFormModal').classList.add('show');
   }
 
   // ✅ Open Edit Product form — image OPTIONAL (keeps existing if not changed)
-  function openEditForm(productId) {
-    const p = allProducts.find(x => x.id === productId);
+  async function openEditForm(productId) {
+    const p = allProducts.find(x => String(x.id) === String(productId));
     if (!p) return;
     editingProductId = productId;
     document.getElementById('formModalTitle').textContent = 'Edit Product_';
     document.getElementById('formBtnText').textContent    = 'Save Changes';
     document.getElementById('pf_name').value     = p.name     || '';
-    document.getElementById('pf_brand').value    = p.brand    || '';
-    document.getElementById('pf_category').value = p.category || '';
-    document.getElementById('pf_price').value    = p.price    || '';
-    document.getElementById('pf_stock').value    = p.stock    ?? '';
-    document.getElementById('pf_image').value    = '';  // always clear file input
-    document.getElementById('selectedFileName').style.display = 'none';
-
-    // Show existing image preview if product has one
-    const imgBox = document.getElementById('imagePreviewBox');
-    const imgEl  = document.getElementById('imagePreviewImg');
-    if (p.imageUrl) {
-      imgEl.src = p.imageUrl;
-      imgBox.style.display = 'block';
-    } else {
-      imgBox.style.display = 'none';
-    }
-
-    // Image is OPTIONAL on edit
-    document.getElementById('imageRequiredStar').style.display = 'none';
-    document.getElementById('imageOptionalHint').style.display = 'inline';
-
+    document.getElementById('pf_sku').value = p.sku || '';
+    document.getElementById('pf_barcode').value = p.barcode || '';
+    document.getElementById('pf_description').value = p.description || '';
+    await populateProductCategorySelect(p.categoryId || '');
+    document.getElementById('pf_unit').value = p.unit || '';
+    document.getElementById('pf_mrp').value = p.mrp ?? '';
+    document.getElementById('pf_sellingPrice').value = p.sellingPrice ?? p.price ?? '';
+    document.getElementById('pf_taxPercent').value = p.taxPercent ?? '';
+    document.getElementById('pf_unitValue').value = p.unitValue ?? '';
+    document.getElementById('pf_images').value = Array.isArray(p.images) ? p.images.join(', ') : '';
+    document.getElementById('pf_isActive').value = String(p.isActive !== false);
     document.getElementById('formError').style.display = 'none';
     document.getElementById('productFormModal').classList.add('show');
   }
@@ -1804,101 +1750,58 @@
 
   // ✅ Submit form — sends multipart/form-data (product details + image together)
   async function submitProductForm() {
-    const name      = document.getElementById('pf_name').value.trim();
-    const brand     = document.getElementById('pf_brand').value.trim();
-    const category  = document.getElementById('pf_category').value.trim();
-    const price     = parseFloat(document.getElementById('pf_price').value);
-    const stock     = parseInt(document.getElementById('pf_stock').value);
-    const imageFile = document.getElementById('pf_image').files[0];  // ✅ image file
-    const errEl     = document.getElementById('formError');
-    const btn       = document.getElementById('formSubmitBtn');
-    const isEdit    = editingProductId !== null;
-
+    const name = document.getElementById('pf_name').value.trim();
+    const sku = document.getElementById('pf_sku').value.trim();
+    const barcode = document.getElementById('pf_barcode').value.trim();
+    const description = document.getElementById('pf_description').value.trim();
+    const categoryId = document.getElementById('pf_categoryId').value;
+    const unit = document.getElementById('pf_unit').value;
+    const mrpRaw = document.getElementById('pf_mrp').value;
+    const sellingRaw = document.getElementById('pf_sellingPrice').value;
+    const taxRaw = document.getElementById('pf_taxPercent').value;
+    const unitValueRaw = document.getElementById('pf_unitValue').value;
+    const imagesRaw = document.getElementById('pf_images').value.trim();
+    const isActive = document.getElementById('pf_isActive').value === 'true';
+    const errEl = document.getElementById('formError');
+    const btn = document.getElementById('formSubmitBtn');
+    const isEdit = editingProductId !== null;
     errEl.style.display = 'none';
-
-    // Validation
-    if (!name || !category || isNaN(price) || isNaN(stock)) {
-      errEl.textContent = 'Please fill in all required fields (Name, Category, Price, Stock).';
-      errEl.style.display = 'block';
-      return;
-    }
-    if (price < 0 || stock < 0) {
-      errEl.textContent = 'Price and Stock must be 0 or greater.';
-      errEl.style.display = 'block';
-      return;
-    }
-    // ✅ Image is mandatory only when ADDING a new product
-    if (!isEdit && !imageFile) {
-      errEl.textContent = 'Please select a product image.';
-      errEl.style.display = 'block';
-      return;
-    }
-	
-
-    const url    = isEdit
-      ? `/api/products/${editingProductId}`
-      : '/api/products';
+    if (!name || !sku || !categoryId || !unit) { errEl.textContent = 'Name, SKU, Category and Unit are required.'; errEl.style.display = 'block'; return; }
+    const payload = { name, description: description || null, sku, barcode: barcode || null, mrp: mrpRaw === '' ? null : Number(mrpRaw), sellingPrice: sellingRaw === '' ? null : Number(sellingRaw), taxPercent: taxRaw === '' ? null : Number(taxRaw), unit, unitValue: unitValueRaw === '' ? null : Number(unitValueRaw), images: imagesRaw ? imagesRaw.split(',').map(s => s.trim()).filter(Boolean) : [], isActive, categoryId };
+    const actorId = getActorId();
+    if (!actorId) { errEl.textContent = 'Actor ID is missing in localStorage. Save userId/adminId before using admin product APIs.'; errEl.style.display = 'block'; return; }
+    const url = isEdit ? `/api/products/${editingProductId}` : '/api/products';
     const method = isEdit ? 'PUT' : 'POST';
-
-    btn.disabled = true;
-    document.getElementById('formBtnText').textContent = isEdit ? 'Saving...' : 'Adding...';
-
+    btn.disabled = true; document.getElementById('formBtnText').textContent = isEdit ? 'Saving...' : 'Adding...';
     try {
-      // ✅ Use FormData — sends product JSON + image file in one request
-      const formData = new FormData();
-      formData.append('product', new Blob(
-        [JSON.stringify({ name, brand, category, price, stock })],
-        { type: 'application/json' }
-      ));
-      if (imageFile) {
-        formData.append('image', imageFile);  // attach image if selected
-      }
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Authorization': 'Bearer ' + token },
-        // ⚠️ Do NOT set Content-Type here — browser sets it automatically for FormData
-        body: formData
-      });
-
-      if (!res.ok) {
-        const msg = await res.text();
-        throw new Error(msg || 'Request failed');
-      }
-      const saved = await res.json();
-
-      // Re-fetch from server to get fresh data
-      const fresh = await fetchProducts();
-      if (fresh) {
-        allProducts = fresh;
-        productsFetched = true;
-      } else {
-        if (isEdit) {
-          const idx = allProducts.findIndex(p => p.id === editingProductId);
-          if (idx !== -1) allProducts[idx] = saved;
-        } else {
-          allProducts.unshift(saved);
-        }
-      }
-
-      closeProductForm();
-      renderProductsModal(allProducts);
-
+      const res = await fetch(url, { method, headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'X-Actor-Id': actorId }, body: JSON.stringify(payload) });
+      if (!res.ok) throw new Error(parseProductApiError(await res.text()));
+      const fresh = await fetchProducts(); if (fresh) { allProducts = fresh; productsFetched = true; }
+      closeProductForm(); renderProductsModal(allProducts);
       document.getElementById('statProductCount').textContent = allProducts.length.toLocaleString();
       document.getElementById('statProductChange').textContent = `${allProducts.length} products listed`;
-
-      addEvent('var(--accent)', isEdit
-        ? `Product <strong>${saved.name}</strong> updated`
-        : `New product <strong>${saved.name}</strong> added`, new Date().toISOString());
-      renderActivity();
-
+      addEvent('var(--accent)', isEdit ? `Product <strong>${name}</strong> updated` : `New product <strong>${name}</strong> added`, new Date().toISOString()); renderActivity();
     } catch (err) {
-      errEl.textContent = err.message || 'Something went wrong.';
-      errEl.style.display = 'block';
+      errEl.textContent = err.message || 'Something went wrong.'; errEl.style.display = 'block';
     } finally {
-      btn.disabled = false;
-      document.getElementById('formBtnText').textContent = isEdit ? 'Save Changes' : 'Add Product';
+      btn.disabled = false; document.getElementById('formBtnText').textContent = isEdit ? 'Save Changes' : 'Add Product';
     }
+  }
+
+  async function toggleProductActive(productId) {
+    const actorId = getActorId(); if (!actorId) { alert('Missing actor id in localStorage'); return; }
+    try { const res = await fetch(`/api/products/${productId}/toggle-active`, { method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': actorId } }); if (!res.ok) throw new Error(parseProductApiError(await res.text())); const fresh = await fetchProducts(); if (fresh) { allProducts = fresh; productsFetched = true; } renderProductsModal(allProducts); } catch (err) { alert(err.message || 'Failed to toggle active status'); }
+  }
+
+  async function restoreProduct(productId) {
+    const actorId = getActorId(); if (!actorId) { alert('Missing actor id in localStorage'); return; }
+    try { const res = await fetch(`/api/products/${productId}/restore`, { method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': actorId } }); if (!res.ok) throw new Error(parseProductApiError(await res.text())); const fresh = await fetchProducts(); if (fresh) { allProducts = fresh; productsFetched = true; } renderProductsModal(allProducts); } catch (err) { alert(err.message || 'Failed to restore product'); }
+  }
+
+  async function openBulkPricePrompt() {
+    const raw = prompt('Enter bulk price items as JSON array: [{"productId":"uuid","mrp":120,"sellingPrice":100}]');
+    if (!raw) return; const actorId = getActorId(); if (!actorId) { alert('Missing actor id in localStorage'); return; }
+    try { const items = JSON.parse(raw); const res = await fetch('/api/products/bulk-price-update', { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'X-Actor-Id': actorId }, body: JSON.stringify(items) }); if (!res.ok) throw new Error(parseProductApiError(await res.text())); const fresh = await fetchProducts(); if (fresh) { allProducts = fresh; productsFetched = true; } renderProductsModal(allProducts); alert('Bulk price update completed successfully'); } catch (err) { alert(err.message || 'Bulk price update failed'); }
   }
 
   // ── Delete ─────────────────────────────────────────────────────────────────
@@ -1926,7 +1829,7 @@
     try {
       const res = await fetch(`/api/products/${deletingProductId}`, {
         method: 'DELETE',
-        headers: { 'Authorization': 'Bearer ' + token }
+        headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': getActorId() }
       });
       if (!res.ok) throw new Error('Delete failed');
 
@@ -2202,7 +2105,7 @@
   async function loadItemSales() {
     try {
       const res = await fetch('/api/admin/item-sales', {
-        headers: { 'Authorization': 'Bearer ' + token }
+        headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': getActorId() }
       });
       if (!res.ok) throw new Error('Status ' + res.status);
       const items = await res.json();
