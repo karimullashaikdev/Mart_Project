@@ -18,33 +18,33 @@ import com.karim.enums.OrderStatus;
 
 public interface OrderService {
 
-	Order placeOrder(UUID userId, PlaceOrderRequestDto dto, UUID actorId);
+    Order placeOrder(UUID userId, PlaceOrderRequestDto dto, UUID actorId);
 
-	OrderResponseDto getOrder(UUID orderId, UUID userId);
+    OrderResponseDto getOrder(UUID orderId, UUID userId);
 
-	OrderResponseDto getOrderByNumber(String orderNumber);
+    OrderResponseDto getOrderByNumber(String orderNumber);
 
-	Page<OrderSummaryDto> listOrdersByUser(UUID userId, OrderFilter filter, Pageable pageable);
+    Page<OrderSummaryDto> listOrdersByUser(UUID userId, OrderFilter filter, Pageable pageable);
 
-	Page<AdminOrderDto> listOrdersAdmin(OrderFilter filter, Pageable pageable);
+    Page<AdminOrderDto> listOrdersAdmin(OrderFilter filter, Pageable pageable);
 
-	void confirmOrder(UUID orderId, UUID actorId);
+    void confirmOrder(UUID orderId, UUID actorId);
 
-	void markProcessing(UUID orderId, UUID actorId);
+    void markProcessing(UUID orderId, UUID actorId);
 
-	void markDispatched(UUID orderId, UUID actorId);
+    void markDispatched(UUID orderId, UUID actorId);
 
-	void markOutForDelivery(UUID orderId, UUID actorId);
+    void markOutForDelivery(UUID orderId, UUID actorId);
 
-	void markDelivered(UUID orderId, UUID actorId);
+    void markDelivered(UUID orderId, UUID actorId);
 
-	void cancelOrder(UUID orderId, String reason, UUID actorId);
+    void cancelOrder(UUID orderId, String reason, UUID actorId);
 
-	void updateOrderStatus(UUID orderId, OrderStatus newStatus, UUID actorId);
+    void updateOrderStatus(UUID orderId, OrderStatus newStatus, UUID actorId);
 
-	void softDeleteOrder(UUID orderId, UUID actorId);
+    void softDeleteOrder(UUID orderId, UUID actorId);
 
-	List<OrderItemResponseDto> getOrderItems(UUID orderId);
+    List<OrderItemResponseDto> getOrderItems(UUID orderId);
 
-	void updateOrderItemStatus(UUID itemId, OrderItemStatus newStatus, UUID actorId);
+    void updateOrderItemStatus(UUID itemId, OrderItemStatus newStatus, UUID actorId);
 }

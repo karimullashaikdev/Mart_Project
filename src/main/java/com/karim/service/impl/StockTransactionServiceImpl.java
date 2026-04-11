@@ -25,7 +25,7 @@ public class StockTransactionServiceImpl implements StockTransactionService {
 	@Transactional(readOnly = true)
 	public Page<StockTransaction> getTransactionsByProduct(UUID productId, Pageable pageable) {
 
-		return stockTransactionRepository.findByProduct(productId, pageable);
+		return stockTransactionRepository.findByProductId(productId, pageable);
 	}
 
 	@Override

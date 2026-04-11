@@ -68,18 +68,5 @@ public interface StockRepository extends JpaRepository<Stock, UUID> {
 			""")
 	void decrementReserved(@Param("productId") UUID productId, @Param("qty") int qty);
 
-	@Query("""
-			    SELECT st FROM StockTransaction st
-			    WHERE st.productId = :productId
-			    AND (:type IS NULL OR st.type = :type)
-			    AND (:orderId IS NULL OR st.orderId = :orderId)
-			    AND (:returnRequestId IS NULL OR st.returnRequestId = :returnRequestId)
-			    AND (:fromDate IS NULL OR st.createdAt >= :fromDate)
-			    AND (:toDate IS NULL OR st.createdAt <= :toDate)
-			    ORDER BY st.createdAt DESC
-			""")
-	Page<StockTransaction> findTransactions(@Param("productId") UUID productId,
-			@Param("type") StockTransactionType type, @Param("orderId") UUID orderId,
-			@Param("returnRequestId") UUID returnRequestId, @Param("fromDate") LocalDateTime fromDate,
-			@Param("toDate") LocalDateTime toDate, Pageable pageable);
+	
 }

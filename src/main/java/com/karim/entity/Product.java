@@ -4,8 +4,11 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcType;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 import com.karim.enums.UnitType;
 
@@ -28,6 +31,7 @@ import lombok.Data;
 
 @Entity
 @Table(name = "products")
+
 @Data
 @SQLDelete(sql = "UPDATE products SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
@@ -36,6 +40,7 @@ public class Product {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	@Column(columnDefinition = "CHAR(36)")
 	private UUID id;
 
@@ -88,9 +93,11 @@ public class Product {
 
 	// 🔁 Audit Fields
 	@Column(name = "created_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID createdBy;
 
 	@Column(name = "updated_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID updatedBy;
 
 	@Column(name = "created_at")
@@ -107,6 +114,7 @@ public class Product {
 	private LocalDateTime deletedAt;
 
 	@Column(name = "deleted_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID deletedBy;
 
 	// ✅ Lifecycle Hooks

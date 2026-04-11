@@ -402,15 +402,19 @@ public class ProductServiceImpl implements ProductService {
 	// ---------------- Helper Methods ----------------
 
 	private void createStockRow(Product product, UUID actorId) {
-		// Assuming you have Stock entity + repository
-		// Example:
-		// Stock stock = new Stock();
-		// stock.setProduct(product);
-		// stock.setQuantity(0);
-		// stock.setCreatedBy(actorId);
-		// stockRepository.save(stock);
+	    stockRepository.findByProductId(product.getId()).ifPresent(existing -> {
+	        throw new RuntimeException("Stock already exists for product: " + product.getId());
+	    });
 
-		// Placeholder if stock module exists separately
+	    Stock stock = new Stock();
+	    stock.setProduct(product);
+	    stock.setQuantityAvailable(0);
+	    stock.setQuantityReserved(0);
+	    stock.setReorderLevel(5);      // optional
+	    stock.setReorderQuantity(10);  // optional
+	    stock.setUpdatedBy(actorId);
+
+	    stockRepository.save(stock);
 	}
 
 	private String generateSlug(String name) {

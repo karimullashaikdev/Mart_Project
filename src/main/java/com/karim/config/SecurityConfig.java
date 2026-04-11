@@ -40,7 +40,7 @@ public class SecurityConfig {
 	    http
 	        .csrf(AbstractHttpConfigurer::disable)
 
-	        .sessionManagement(session -> 
+	        .sessionManagement(session ->
 	            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
 	        .exceptionHandling(ex -> ex
@@ -70,51 +70,68 @@ public class SecurityConfig {
 
 	        .authorizeHttpRequests(auth -> auth
 
-	                .requestMatchers(
-	                    "/v3/api-docs/**",
-	                    "/swagger-ui/**",
-	                    "/swagger-ui.html",
-	                    "/swagger-resources/**",
-	                    "/webjars/**"
-	                ).permitAll()
+	            // Swagger
+	            .requestMatchers(
+	                "/v3/api-docs/**",
+	                "/swagger-ui/**",
+	                "/swagger-ui.html",
+	                "/swagger-resources/**",
+	                "/webjars/**"
+	            ).permitAll()
 
-	                .requestMatchers(
-	                    "/register.html",
-	                    "/login.html",
-	                    "/forgot-password.html",
-	                    "/activate.html",
-	                    "/reset-password.html",
-	                    "/products.html",
-	                    "/delivery-dashboard.html",
-	                    "/admin.html"
-	                ).permitAll()
+	            // Static HTML pages
+	            .requestMatchers(
+	                "/register.html",
+	                "/login.html",
+	                "/forgot-password.html",
+	                "/activate.html",
+	                "/reset-password.html",
+	                "/products.html",
+	                "/delivery-dashboard.html",
+	                "/admin.html",
+	                "/my-orders.html"
+	            ).permitAll()
 
-	                .requestMatchers("/api/auth/**").permitAll()
+	            // Static resources
+	            .requestMatchers(
+	                "/css/**",
+	                "/js/**",
+	                "/images/**",
+	                "/icons/**",
+	                "/assets/**",
+	                "/favicon.ico"
+	            ).permitAll()
 
-	                .requestMatchers(HttpMethod.POST, "/api/images/upload").permitAll()
+	            // Auth APIs
+	            .requestMatchers("/api/auth/**").permitAll()
 
-	                .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**").permitAll()
+	            // Public APIs
+	            .requestMatchers(HttpMethod.POST, "/api/images/upload").permitAll()
+	            .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**").permitAll()
 
-	                .requestMatchers(HttpMethod.GET, "/api/users/me/**").authenticated()
-	                .requestMatchers(HttpMethod.POST, "/api/users/me/**").authenticated()
-	                .requestMatchers(HttpMethod.PUT, "/api/users/me/**").authenticated()
-	                .requestMatchers(HttpMethod.PATCH, "/api/users/me/**").authenticated()
+	            // User self APIs
+	            .requestMatchers(HttpMethod.GET, "/api/users/me/**").authenticated()
+	            .requestMatchers(HttpMethod.POST, "/api/users/me/**").authenticated()
+	            .requestMatchers(HttpMethod.PUT, "/api/users/me/**").authenticated()
+	            .requestMatchers(HttpMethod.PATCH, "/api/users/me/**").authenticated()
+	            .requestMatchers(HttpMethod.DELETE, "/api/users/me/**").authenticated()
 
-	                .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
-	                .requestMatchers("/api/payments/**").authenticated()
+	            // Payments
+	            .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
+	            .requestMatchers("/api/payments/**").authenticated()
 
-	                .requestMatchers("/api/admin/**").hasRole("ADMIN")
+	            // Admin APIs
+	            .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-	                .anyRequest().authenticated()
+	            // Everything else
+	            .anyRequest().authenticated()
 	        )
 
 	        .authenticationProvider(authenticationProvider())
-
 	        .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
 	    return http.build();
 	}
-	
 	@Bean
 	public DaoAuthenticationProvider authenticationProvider() {
 		DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();

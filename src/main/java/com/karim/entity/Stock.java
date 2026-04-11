@@ -3,8 +3,10 @@ package com.karim.entity;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 import com.karim.enums.StockStatus;
 
@@ -34,6 +36,7 @@ public class Stock {
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
 	@Column(columnDefinition = "CHAR(36)")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID id;
 
 	// 🔗 One Product → One Stock
@@ -58,6 +61,7 @@ public class Stock {
 	private StockStatus status;
 
 	@Column(name = "updated_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID updatedBy;
 
 	@Column(name = "last_updated_at")
@@ -71,6 +75,7 @@ public class Stock {
 	private LocalDateTime deletedAt;
 
 	@Column(name = "deleted_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID deletedBy;
 
 	// ✅ Lifecycle Hooks

@@ -15,37 +15,40 @@ import com.karim.enums.StockTransactionType;
 
 public interface StockTransactionRepository extends JpaRepository<StockTransaction, UUID> {
 
-	// ✅ create(data) → handled by save()
+    // Find all transactions for a product with pagination
+    @Query("""
+            SELECT st
+            FROM StockTransaction st
+            WHERE st.productId = :productId
+            ORDER BY st.createdAt DESC
+           """)
+    Page<StockTransaction> findByProductId(@Param("productId") UUID productId, Pageable pageable);
 
-	// ✅ findByProduct(productId, filters) with pagination
-	@Query("""
-			    SELECT st FROM StockTransaction st
-			    WHERE st.productId = :productId
-			""")
-	Page<StockTransaction> findByProduct(@Param("productId") UUID productId, Pageable pageable);
+    // Find transactions by orderId
+    List<StockTransaction> findByOrderId(UUID orderId);
 
-	// ✅ findByOrder(orderId)
-	List<StockTransaction> findByOrderId(UUID orderId);
+    // Find transactions by returnRequestId
+    List<StockTransaction> findByReturnRequestId(UUID returnRequestId);
 
-	// ✅ findByReturn(returnRequestId)
-	List<StockTransaction> findByReturnRequestId(UUID returnRequestId);
-
-	@Query("""
-		    SELECT st FROM StockTransaction st
-		    WHERE (:productId IS NULL OR st.productId = :productId)
-		    AND (:type IS NULL OR st.type = :type)
-		    AND (:orderId IS NULL OR st.orderId = :orderId)
-		    AND (:returnRequestId IS NULL OR st.returnRequestId = :returnRequestId)
-		    AND (:fromDate IS NULL OR st.createdAt >= :fromDate)
-		    AND (:toDate IS NULL OR st.createdAt <= :toDate)
-		""")
-		Page<StockTransaction> findTransactions(
-		        @Param("productId") UUID productId,
-		        @Param("type") StockTransactionType type,
-		        @Param("orderId") UUID orderId,
-		        @Param("returnRequestId") UUID returnRequestId,
-		        @Param("fromDate") LocalDateTime fromDate,
-		        @Param("toDate") LocalDateTime toDate,
-		        Pageable pageable
-		);
+    // Flexible filter method
+    @Query("""
+            SELECT st
+            FROM StockTransaction st
+            WHERE (:productId IS NULL OR st.productId = :productId)
+              AND (:type IS NULL OR st.type = :type)
+              AND (:orderId IS NULL OR st.orderId = :orderId)
+              AND (:returnRequestId IS NULL OR st.returnRequestId = :returnRequestId)
+              AND (:fromDate IS NULL OR st.createdAt >= :fromDate)
+              AND (:toDate IS NULL OR st.createdAt <= :toDate)
+            ORDER BY st.createdAt DESC
+           """)
+    Page<StockTransaction> findTransactions(
+            @Param("productId") UUID productId,
+            @Param("type") StockTransactionType type,
+            @Param("orderId") UUID orderId,
+            @Param("returnRequestId") UUID returnRequestId,
+            @Param("fromDate") LocalDateTime fromDate,
+            @Param("toDate") LocalDateTime toDate,
+            Pageable pageable
+    );
 }
