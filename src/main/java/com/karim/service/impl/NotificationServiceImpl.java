@@ -241,6 +241,7 @@ public class NotificationServiceImpl implements NotificationService {
 	}
 
 	@Override
+	@Async
 	public void sendEmail(UUID userId, EmailType emailType, String toEmail, String subject, String body,
 			String referenceId) {
 
