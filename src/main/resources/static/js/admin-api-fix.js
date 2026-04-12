@@ -10,17 +10,12 @@
 // ────────────────────────────────────────────────────────────────────────────
 
 // ── 1. Base URL ───────────────────────────────────────────────────────────────
-// '' = same origin. Change to 'http://localhost:8080' for local dev if
-// your frontend is served from a different port than Spring Boot.
 const BASE = '';
 
 // ── 2. Auth token ─────────────────────────────────────────────────────────────
 const token = localStorage.getItem('token') || localStorage.getItem('authToken') || '';
 
 // ── 3. Actor-ID helper ────────────────────────────────────────────────────────
-// Controllers read: @RequestHeader("X-Actor-Id") UUID actorId
-// Make sure your login page saves the logged-in user's UUID under one of
-// these keys after a successful POST /api/auth/login response.
 function getActorId() {
     return (
         localStorage.getItem('actorId') ||
@@ -35,69 +30,69 @@ function getActorId() {
 const ADMIN_API = {
 
     // ── Products ──────────────────────────────────────────────────────────────
-    // ProductController  →  /api/products
     products: {
-        list:               `${BASE}/api/products`,                          // GET
-        create:             `${BASE}/api/products`,                          // POST
-        update:    (id)  => `${BASE}/api/products/${id}`,                    // PUT
-        delete:    (id)  => `${BASE}/api/products/${id}`,                    // DELETE
-        toggleActive:(id)=> `${BASE}/api/products/${id}/toggle-active`,      // PATCH
-        restore:   (id)  => `${BASE}/api/products/${id}/restore`,            // PATCH
-        bulkPriceUpdate:    `${BASE}/api/products/bulk-price-update`,        // PUT
+        list:                `${BASE}/api/products`,
+        create:              `${BASE}/api/products`,
+        getById:    (id)  => `${BASE}/api/products/${id}`,
+        getBySlug:  (slug)=> `${BASE}/api/products/slug/${slug}`,
+        update:     (id)  => `${BASE}/api/products/${id}`,
+        delete:     (id)  => `${BASE}/api/products/${id}`,
+        toggleActive:(id) => `${BASE}/api/products/${id}/toggle-active`,
+        restore:    (id)  => `${BASE}/api/products/${id}/restore`,
+        bulkPriceUpdate:     `${BASE}/api/products/bulk-price-update`,
     },
 
     // ── Categories ────────────────────────────────────────────────────────────
-    // CategoryController  →  /api/categories
-    // Admin flat list     →  GET /api/categories/admin/all
+    // POST   /api/categories                → createCategory  (CreateCategoryDto)
+    // PATCH  /api/categories/{id}           → updateCategory  (UpdateCategoryDto)
+    // DELETE /api/categories/{id}           → softDelete
+    // PATCH  /api/categories/{id}/restore   → restore
+    // PATCH  /api/categories/reorder        → reorder         (ReorderCategoriesDto → { orderedIds: UUID[] })
+    // GET    /api/categories/admin/all      → listAll (admin, includes deleted, supports CategoryFilterDto params)
+    // GET    /api/categories                → tree (public, active only)
     categories: {
-        list:              `${BASE}/api/categories/admin/all`,       // GET  admin list
-        tree:              `${BASE}/api/categories`,                 // GET  public tree
-        create:            `${BASE}/api/categories`,                 // POST
-        update:   (id)  => `${BASE}/api/categories/${id}`,           // PATCH
-        delete:   (id)  => `${BASE}/api/categories/${id}`,           // DELETE soft
-        restore:  (id)  => `${BASE}/api/categories/${id}/restore`,   // PATCH
-        reorder:           `${BASE}/api/categories/reorder`,         // PATCH
+        adminAll:          `${BASE}/api/categories/admin/all`,
+        tree:              `${BASE}/api/categories`,
+        create:            `${BASE}/api/categories`,
+        update:   (id)  => `${BASE}/api/categories/${id}`,
+        delete:   (id)  => `${BASE}/api/categories/${id}`,
+        restore:  (id)  => `${BASE}/api/categories/${id}/restore`,
+        reorder:           `${BASE}/api/categories/reorder`,
     },
 
     // ── Users ─────────────────────────────────────────────────────────────────
-    // UserController  →  /api/users
     users: {
-        list:              `${BASE}/api/users`,                      // GET  ?page=&size=
-        getById:  (id)  => `${BASE}/api/users/${id}`,                // GET
-        update:   (id)  => `${BASE}/api/users/${id}`,                // PATCH
-        restore:  (id)  => `${BASE}/api/users/${id}/restore`,        // PATCH
+        list:              `${BASE}/api/users`,
+        getById:  (id)  => `${BASE}/api/users/${id}`,
+        update:   (id)  => `${BASE}/api/users/${id}`,
+        restore:  (id)  => `${BASE}/api/users/${id}/restore`,
     },
 
     // ── Orders ────────────────────────────────────────────────────────────────
-    // OrderController  →  /api/admin/orders
     orders: {
-        list:                   `${BASE}/api/admin/orders`,                        // GET
-        items:         (id)  => `${BASE}/api/admin/orders/${id}/items`,            // GET
-        updateStatus:  (id)  => `${BASE}/api/admin/orders/${id}/status`,           // PATCH
-        confirm:       (id)  => `${BASE}/api/admin/orders/${id}/confirm`,          // PATCH
-        processing:    (id)  => `${BASE}/api/admin/orders/${id}/processing`,       // PATCH
-        dispatch:      (id)  => `${BASE}/api/admin/orders/${id}/dispatch`,         // PATCH
-        outForDelivery:(id)  => `${BASE}/api/admin/orders/${id}/out-for-delivery`, // PATCH
-        deliver:       (id)  => `${BASE}/api/admin/orders/${id}/deliver`,          // PATCH
-        delete:        (id)  => `${BASE}/api/admin/orders/${id}`,                  // DELETE
+        list:                   `${BASE}/api/admin/orders`,
+        items:         (id)  => `${BASE}/api/admin/orders/${id}/items`,
+        updateStatus:  (id)  => `${BASE}/api/admin/orders/${id}/status`,
+        confirm:       (id)  => `${BASE}/api/admin/orders/${id}/confirm`,
+        processing:    (id)  => `${BASE}/api/admin/orders/${id}/processing`,
+        dispatch:      (id)  => `${BASE}/api/admin/orders/${id}/dispatch`,
+        outForDelivery:(id)  => `${BASE}/api/admin/orders/${id}/out-for-delivery`,
+        deliver:       (id)  => `${BASE}/api/admin/orders/${id}/deliver`,
+        delete:        (id)  => `${BASE}/api/admin/orders/${id}`,
     },
 
     // ── Cart (admin) ──────────────────────────────────────────────────────────
-    // CartController  →  /api/v1/cart
-    // Admin delete:   DELETE /api/v1/cart?userId={uid}  (@PreAuthorize ADMIN)
     cart: {
-        deleteByUser: (uid) => `${BASE}/api/v1/cart?userId=${uid}`,  // DELETE
+        deleteByUser: (uid) => `${BASE}/api/v1/cart?userId=${uid}`,
     },
 
     // ── Image upload ──────────────────────────────────────────────────────────
-    // CloudinaryController  →  /api/images
     images: {
-        upload: `${BASE}/api/images/upload`,   // POST multipart/form-data  key="file"
-        delete: `${BASE}/api/images/delete`,   // DELETE ?publicId=...
+        upload: `${BASE}/api/images/upload`,
+        delete: `${BASE}/api/images/delete`,
     },
 
     // ── Auth ──────────────────────────────────────────────────────────────────
-    // AuthController  →  /api/auth
     auth: {
         login:          `${BASE}/api/auth/login`,
         register:       `${BASE}/api/auth/register`,
@@ -107,10 +102,6 @@ const ADMIN_API = {
 };
 
 // ── 5. Response unwrapper ─────────────────────────────────────────────────────
-// CategoryController / UserController / OrderController return:
-//   ApiResponse<T>  →  { success: true, data: T, message: "..." }
-// ProductController write endpoints return plain ResponseEntity<String>.
-// This handles both shapes transparently.
 function unwrapApiResponse(raw) {
     if (raw === null || raw === undefined) return raw;
     if (typeof raw === 'object' && !Array.isArray(raw)) {
@@ -118,7 +109,7 @@ function unwrapApiResponse(raw) {
         if ('result'  in raw) return raw.result;
         if ('payload' in raw) return raw.payload;
     }
-    return raw; // plain array or string — return as-is
+    return raw;
 }
 
 // ── 6. Error parser ───────────────────────────────────────────────────────────
@@ -158,13 +149,17 @@ function logout() {
     window.location.href = 'login.html';
 }
 
-// ── 10. Debug log (safe to remove in production) ──────────────────────────────
+// ── 10. Debug log ─────────────────────────────────────────────────────────────
 console.log('[admin-api-fix] All routes loaded. BASE:', BASE || '(same origin)');
 console.table({
-    'Products list':    ADMIN_API.products.list,
-    'Categories list':  ADMIN_API.categories.list,
-    'Users list':       ADMIN_API.users.list,
-    'Orders list':      ADMIN_API.orders.list,
-    'Image upload':     ADMIN_API.images.upload,
-    'Cart delete':      ADMIN_API.cart.deleteByUser('USER_ID'),
+    'Products list':          ADMIN_API.products.list,
+    'Products create':        ADMIN_API.products.create,
+    'Products bulk-price':    ADMIN_API.products.bulkPriceUpdate,
+    'Categories admin/all':   ADMIN_API.categories.adminAll,
+    'Categories create':      ADMIN_API.categories.create,
+    'Categories reorder':     ADMIN_API.categories.reorder,
+    'Users list':             ADMIN_API.users.list,
+    'Orders list':            ADMIN_API.orders.list,
+    'Image upload':           ADMIN_API.images.upload,
+    'Cart delete':            ADMIN_API.cart.deleteByUser('USER_ID'),
 });

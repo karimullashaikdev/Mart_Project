@@ -2,19 +2,19 @@
 <html lang="en">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Dashboard</title>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap"
-        rel="stylesheet">
-    <link rel="stylesheet" href="/css/admin.css">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin Dashboard</title>
+<link
+	href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Inter:wght@300;400;500;600&display=swap"
+	rel="stylesheet">
+<link rel="stylesheet" href="/css/admin.css">
 
-    <!-- Load API/config helpers first -->
-    <script src="/js/admin-api-fix.js" defer></script>
+<!-- Load API/config helpers first -->
+<script src="/js/admin-api-fix.js" defer></script>
 
-    <!-- Then load your existing admin logic -->
-    <script src="/js/admin.js" defer></script>
+<!-- Then load your existing admin logic -->
+<script src="/js/admin.js" defer></script>
 </head>
 
 <body>
@@ -120,7 +120,7 @@
 						<div id="activityPulse"
 							style="width: 8px; height: 8px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.4); animation: livePulse 2s ease infinite">
 						</div>
-						<span class="table-badge" id="activityBadge">Loading......</span>
+						<span class="table-badge" id="activityBadge">Loading...</span>
 						<button class="btn-ghost"
 							style="padding: 4px 10px; font-size: 11px"
 							onclick="refreshActivity()" title="Refresh now">↻</button>
@@ -197,7 +197,9 @@
 	</div>
 
 
-	<!-- ── Products Modal ── -->
+	<!-- ════════════════════════════════════════════════════════════
+	     PRODUCTS MODAL
+	     ════════════════════════════════════════════════════════════ -->
 	<div class="modal-overlay" id="productsModal"
 		onclick="closeProductsModalOnBg(event)">
 		<div class="modal" style="width: 1100px; max-height: 90vh">
@@ -208,6 +210,10 @@
 						id="modalProductCount">Fetching...</div>
 				</div>
 				<div style="display: flex; gap: 8px; align-items: center">
+					<!-- Bulk price update button wired to the new modal -->
+					<button class="btn-ghost"
+						style="font-size: 12px; padding: 7px 14px"
+						onclick="openBulkPriceModal()">💲 Bulk Prices</button>
 					<button class="btn-primary"
 						style="font-size: 12px; padding: 7px 14px"
 						onclick="openProductForm()">+ Add Product</button>
@@ -219,7 +225,8 @@
 			<div
 				style="display: flex; gap: 10px; padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface2)">
 				<input id="productSearch" type="text"
-					placeholder="🔍  Search by name..." oninput="filterProducts()"
+					placeholder="🔍  Search by name or SKU..."
+					oninput="filterProducts()"
 					style="flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 13px; outline: none" />
 				<select id="categoryFilter" onchange="filterProducts()"
 					style="background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 13px; outline: none; cursor: pointer">
@@ -256,7 +263,10 @@
 	</div>
 
 
-	<!-- ── Add / Edit Product Form Modal ── -->
+	<!-- ════════════════════════════════════════════════════════════
+	     ADD / EDIT PRODUCT FORM MODAL
+	     Maps to CreateProductDto (POST) / UpdateProductDto (PUT)
+	     ════════════════════════════════════════════════════════════ -->
 	<div class="modal-overlay" id="productFormModal"
 		onclick="closeFormModalOnBg(event)">
 		<div class="modal" style="width: 500px; max-height: 92vh">
@@ -266,95 +276,110 @@
 			</div>
 			<div class="modal-body"
 				style="padding: 28px; display: flex; flex-direction: column; gap: 18px">
+
+				<!-- name — @NotBlank -->
 				<div>
 					<label
-						style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">Product
-						Name *</label><input id="pf_name" type="text"
+						style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">
+						Product Name * </label> <input id="pf_name" type="text"
 						placeholder="e.g. Wireless Headphones"
-						style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s" />
+						style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none" />
 				</div>
+
+				<!-- sku + barcode -->
 				<div
 					style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px">
 					<div>
 						<label
-							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">SKU
-							*</label><input id="pf_sku" type="text" placeholder="e.g. SKU-1001"
-							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s" />
+							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">
+							SKU * </label> <input id="pf_sku" type="text" placeholder="e.g. SKU-1001"
+							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none" />
 					</div>
 					<div>
 						<label
-							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">Barcode</label><input
-							id="pf_barcode" type="text" placeholder="e.g. 8901234567890"
-							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s" />
+							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">
+							Barcode </label> <input id="pf_barcode" type="text"
+							placeholder="e.g. 8901234567890"
+							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none" />
 					</div>
 				</div>
+
+				<!-- description -->
 				<div>
 					<label
-						style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">Description</label>
+						style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">
+						Description </label>
 					<textarea id="pf_description" rows="3"
 						placeholder="Short product description"
 						style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none; resize: vertical"></textarea>
 				</div>
+
+				<!-- categoryId + unit (UnitType enum) — both @NotNull -->
 				<div
 					style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px">
 					<div>
 						<label
-							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">Category
-							*</label><select id="pf_categoryId"
+							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">
+							Category * </label> <select id="pf_categoryId"
 							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none">
 							<option value="">Select Category</option>
 						</select>
 					</div>
 					<div>
+						<!-- Unit select is populated by populateUnitSelect() in JS -->
 						<label
-							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">Unit
-							*</label><select id="pf_unit"
+							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">
+							Unit * <span style="font-size: 10px; color: var(--muted)">(UnitType)</span>
+						</label> <select id="pf_unit"
 							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none">
 							<option value="">Select Unit</option>
-							<option value="PCS">PCS</option>
-							<option value="KG">KG</option>
-							<option value="G">G</option>
-							<option value="LTR">LTR</option>
 						</select>
 					</div>
 				</div>
+
+				<!-- mrp + sellingPrice -->
 				<div
 					style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px">
 					<div>
 						<label
-							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">MRP</label><input
-							id="pf_mrp" type="number" min="0" step="0.01" placeholder="0.00"
-							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s" />
+							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">MRP</label>
+						<input id="pf_mrp" type="number" min="0" step="0.01"
+							placeholder="0.00"
+							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none" />
 					</div>
 					<div>
 						<label
 							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">Selling
-							Price</label><input id="pf_sellingPrice" type="number" min="0"
+							Price</label> <input id="pf_sellingPrice" type="number" min="0"
 							step="0.01" placeholder="0.00"
-							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s" />
+							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none" />
 					</div>
 				</div>
+
+				<!-- taxPercent + unitValue -->
 				<div
 					style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px">
 					<div>
 						<label
 							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">Tax
-							Percent</label><input id="pf_taxPercent" type="number" min="0"
-							step="0.01" placeholder="0"
-							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s" />
+							%</label> <input id="pf_taxPercent" type="number" min="0" step="0.01"
+							placeholder="0"
+							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none" />
 					</div>
 					<div>
 						<label
 							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">Unit
-							Value</label><input id="pf_unitValue" type="number" min="0" step="0.01"
+							Value</label> <input id="pf_unitValue" type="number" min="0" step="0.01"
 							placeholder="e.g. 1"
-							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none; transition: border-color 0.2s" />
+							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none" />
 					</div>
 				</div>
+
+				<!-- Product Images -->
 				<div>
 					<label
-						style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">Product
-						Images *</label> <input id="pf_uploadedImages" type="hidden" />
+						style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">
+						Product Images * </label> <input id="pf_uploadedImages" type="hidden" />
 					<div class="img-upload-area" id="productImgUploadArea">
 						<input id="pf_imageFiles" type="file"
 							accept=".jpg,.jpeg,.png,.webp" multiple
@@ -365,7 +390,7 @@
 							style="font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px">Click
 							to choose product images</div>
 						<div style="font-size: 11px; color: var(--muted)">Minimum 1
-							and maximum 10 images · JPG, PNG, WEBP · Max 5MB each</div>
+							and maximum 10 · JPG, PNG, WEBP · Max 5 MB each</div>
 					</div>
 					<div id="productSelectedFileName"
 						style="display: none; margin-top: 8px; font-size: 12px; color: var(--accent); padding: 6px 10px; background: var(--accent-dim); border-radius: 6px; border: 1px solid rgba(59, 130, 246, 0.2)">
@@ -385,25 +410,18 @@
 							style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px"></div>
 					</div>
 				</div>
-				<div
-					style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px">
-					<div>
-						<label
-							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">Active
-							Status</label><select id="pf_isActive"
-							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none">
-							<option value="true">Active</option>
-							<option value="false">Inactive</option>
-						</select>
-					</div>
-					<div>
-						<label
-							style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">Quick
-							Price API</label>
-						<button class="btn-ghost" style="width: 100%; padding: 11px"
-							onclick="openBulkPricePrompt()">Bulk Price Update</button>
-					</div>
+
+				<!-- isActive -->
+				<div>
+					<label
+						style="display: block; font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin-bottom: 7px">Active
+						Status</label> <select id="pf_isActive"
+						style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 11px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 14px; outline: none">
+						<option value="true">Active</option>
+						<option value="false">Inactive</option>
+					</select>
 				</div>
+
 				<div id="formError"
 					style="display: none; background: var(--red-dim); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--red)">
 				</div>
@@ -424,7 +442,70 @@
 	</div>
 
 
-	<!-- ── Delete Confirm Modal ── -->
+	<!-- ════════════════════════════════════════════════════════════
+	     BULK PRICE UPDATE MODAL
+	     PUT /api/products/bulk-price-update
+	     Body: [BulkPriceUpdateDto] → [{ productId, mrp, sellingPrice }]
+	     Header: X-Actor-Id
+	     ════════════════════════════════════════════════════════════ -->
+	<div class="modal-overlay" id="bulkPriceModal"
+		onclick="closeBulkPriceModalOnBg(event)">
+		<div class="modal" style="width: 720px; max-height: 90vh">
+			<div class="modal-head">
+				<div>
+					<div class="modal-title">Bulk Price Update_</div>
+					<div style="font-size: 12px; color: var(--muted); margin-top: 3px">
+						PUT /api/products/bulk-price-update · [BulkPriceUpdateDto]</div>
+				</div>
+				<button class="modal-close" onclick="closeBulkPriceModal()">✕</button>
+			</div>
+
+			<div class="modal-body"
+				style="padding: 24px; display: flex; flex-direction: column; gap: 16px">
+
+				<!-- Column headers -->
+				<div
+					style="display: grid; grid-template-columns: 2fr 1fr 1fr auto; gap: 10px; padding: 0 2px">
+					<div
+						style="font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted)">Product</div>
+					<div
+						style="font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted)">MRP
+						(₹)</div>
+					<div
+						style="font-size: 11px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted)">Selling
+						Price (₹)</div>
+					<div></div>
+				</div>
+
+				<!-- Dynamic rows container -->
+				<div id="bulkPriceRows"></div>
+
+				<!-- Add row -->
+				<button class="btn-ghost"
+					style="align-self: flex-start; padding: 8px 16px; font-size: 13px"
+					onclick="addBulkPriceRow()">+ Add Row</button>
+
+				<div id="bulkPriceError"
+					style="display: none; background: var(--red-dim); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--red)">
+				</div>
+
+				<div style="display: flex; gap: 10px; margin-top: 4px">
+					<button class="btn-ghost" style="flex: 1; padding: 11px"
+						onclick="closeBulkPriceModal()">Cancel</button>
+					<button id="bulkPriceSubmitBtn" class="btn-primary"
+						style="flex: 2; padding: 11px; font-size: 14px"
+						onclick="submitBulkPrices()">Apply Price Updates</button>
+				</div>
+
+			</div>
+		</div>
+	</div>
+
+
+	<!-- ════════════════════════════════════════════════════════════
+	     DELETE PRODUCT CONFIRM MODAL
+	     DELETE /api/products/{id}  header: X-Actor-Id
+	     ════════════════════════════════════════════════════════════ -->
 	<div class="modal-overlay" id="deleteModal"
 		onclick="closeDeleteModalOnBg(event)">
 		<div class="modal" style="width: 400px">
@@ -435,12 +516,13 @@
 			</div>
 			<div style="padding: 28px">
 				<p style="font-size: 14px; color: var(--muted); margin-bottom: 8px">Are
-					you sure you want to delete</p>
+					you sure you want to soft-delete</p>
 				<p style="font-size: 16px; font-weight: 600; margin-bottom: 24px"
 					id="deleteProductName">—</p>
 				<p
 					style="font-size: 12px; color: var(--red); margin-bottom: 20px; background: var(--red-dim); padding: 10px 14px; border-radius: 8px">
-					⚠ This action cannot be undone.</p>
+					⚠ Product and its associated stock will be soft deleted. You can
+					restore it later.</p>
 				<div style="display: flex; gap: 10px">
 					<button class="btn-ghost" style="flex: 1; padding: 11px"
 						onclick="closeDeleteModal()">Cancel</button>
@@ -453,8 +535,9 @@
 	</div>
 
 
-
-	<!-- ── Cart Admin Modal ── -->
+	<!-- ════════════════════════════════════════════════════════════
+	     CART ADMIN MODAL
+	     ════════════════════════════════════════════════════════════ -->
 	<div class="modal-overlay" id="cartAdminModal"
 		onclick="closeCartAdminModalOnBg(event)">
 		<div class="modal" style="width: 1100px; max-height: 90vh">
@@ -507,7 +590,9 @@
 	</div>
 
 
-	<!-- ── Orders Modal ── -->
+	<!-- ════════════════════════════════════════════════════════════
+	     ORDERS MODAL
+	     ════════════════════════════════════════════════════════════ -->
 	<div class="modal-overlay" id="ordersModal"
 		onclick="closeOrdersModalOnBg(event)">
 		<div class="modal" style="width: 1100px">
@@ -559,7 +644,7 @@
 					</thead>
 					<tbody id="allOrdersTable">
 						<tr>
-							<td colspan="9"
+							<td colspan="7"
 								style="text-align: center; padding: 32px; color: var(--muted)">
 								<div class="skel"
 									style="height: 14px; width: 60%; margin: 0 auto 10px"></div>
@@ -574,7 +659,9 @@
 	</div>
 
 
-	<!-- ── Categories Modal ── -->
+	<!-- ════════════════════════════════════════════════════════════
+	     CATEGORIES MODAL
+	     ════════════════════════════════════════════════════════════ -->
 	<div class="modal-overlay" id="categoriesModal"
 		onclick="closeCategoriesModalOnBg(event)">
 		<div class="modal" style="width: 1180px; max-height: 90vh">
@@ -688,7 +775,7 @@
 							style="font-size: 13px; font-weight: 500; color: var(--text); margin-bottom: 4px">Click
 							to upload category image</div>
 						<div style="font-size: 11px; color: var(--muted)">JPG, PNG,
-							WEBP accepted · Max 5MB</div>
+							WEBP accepted · Max 5 MB</div>
 					</div>
 
 					<div id="categorySelectedFileName"
@@ -725,7 +812,6 @@
 						<option value="">No Parent (Root Category)</option>
 					</select>
 				</div>
-
 
 				<div id="categoryFormError"
 					style="display: none; background: var(--red-dim); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 10px 14px; font-size: 13px; color: var(--red)">
@@ -774,7 +860,9 @@
 	</div>
 
 
-	<!-- ── Users Modal ── -->
+	<!-- ════════════════════════════════════════════════════════════
+	     USERS MODAL
+	     ════════════════════════════════════════════════════════════ -->
 	<div class="modal-overlay" id="usersModal"
 		onclick="closeModalOnBg(event)">
 		<div class="modal" style="width: 1180px; max-height: 90vh">
@@ -873,6 +961,6 @@
 			</div>
 		</div>
 	</div>
-</body>
 
+</body>
 </html>

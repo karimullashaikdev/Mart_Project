@@ -31,7 +31,6 @@ async function loadDashboard() {
     ]);
 }
 
-// ── Users stat + recent users table ──────────────────────────────────────────
 async function loadDashboardUsers() {
     try {
         const res = await fetch(`${ADMIN_API.users.list}?page=0&size=100`, {
@@ -44,7 +43,6 @@ async function loadDashboardUsers() {
 
         document.getElementById('statUserCount').textContent = (data?.totalElements ?? users.length).toLocaleString();
         document.getElementById('statUserChange').textContent = `${users.length} users loaded`;
-
         renderRecentUsers(users.slice(0, 5));
 
         const badge = document.getElementById('recentBadge');
@@ -77,7 +75,6 @@ function renderRecentUsers(users) {
     `).join('');
 }
 
-// ── Orders stat ───────────────────────────────────────────────────────────────
 async function loadDashboardOrders() {
     try {
         const res = await fetch(`${ADMIN_API.orders.list}?page=0&size=1`, {
@@ -100,7 +97,6 @@ async function loadDashboardOrders() {
     }
 }
 
-// ── Products stat ─────────────────────────────────────────────────────────────
 async function loadDashboardProducts() {
     try {
         const res = await fetch(`${ADMIN_API.products.list}?page=0&size=1`, {
@@ -114,7 +110,6 @@ async function loadDashboardProducts() {
         document.getElementById('statProductCount').textContent = total.toLocaleString();
         document.getElementById('statProductChange').textContent = `${total} products listed`;
 
-        // Low stock check
         const items = Array.isArray(data) ? data : (data?.content || []);
         const lowStock = items.filter(p => (p.availableQuantity ?? p.stock ?? 0) < 5);
         if (lowStock.length) renderLowStockAlerts(lowStock);
@@ -123,12 +118,10 @@ async function loadDashboardProducts() {
     }
 }
 
-// ── Activity feed ─────────────────────────────────────────────────────────────
 async function loadActivity() {
     const list = document.getElementById('activityList');
     const badge = document.getElementById('activityBadge');
     try {
-        // Build activity from recent orders
         const res = await fetch(`${ADMIN_API.orders.list}?page=0&size=8`, {
             headers: { 'Authorization': 'Bearer ' + token }
         });
@@ -142,7 +135,6 @@ async function loadActivity() {
             if (badge) badge.textContent = '0 events';
             return;
         }
-
         if (badge) badge.textContent = `${orders.length} recent`;
 
         list.innerHTML = orders.map(o => {
@@ -154,7 +146,9 @@ async function loadActivity() {
             }[o.status] || 'var(--muted)';
 
             const time = o.createdAt || o.placedAt || o.orderDate || '';
-            const timeStr = time ? new Date(time).toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—';
+            const timeStr = time ? new Date(time).toLocaleString('en-IN', {
+                month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            }) : '—';
 
             return `
                 <div class="activity-item">
@@ -177,7 +171,6 @@ async function loadActivity() {
 
 function refreshActivity() { loadActivity(); }
 
-// ── Sales bar chart ───────────────────────────────────────────────────────────
 async function loadSalesChart() {
     const chart = document.getElementById('salesChart');
     const badge = document.getElementById('salesBadge');
@@ -194,7 +187,6 @@ async function loadSalesChart() {
             chart.innerHTML = `<div style="text-align:center;padding:24px;color:var(--muted);font-size:13px">No sales data</div>`;
             return;
         }
-
         if (badge) badge.textContent = `${products.length} products`;
 
         const max = Math.max(...products.map(p => p.availableQuantity ?? p.stock ?? 0), 1);
@@ -204,9 +196,7 @@ async function loadSalesChart() {
             return `
                 <div class="bar-row">
                     <div class="bar-label" title="${escapeHtml(p.name || '—')}">${escapeHtml((p.name || '—').slice(0, 18))}</div>
-                    <div class="bar-track">
-                        <div class="bar-fill" style="width:${pct}%"></div>
-                    </div>
+                    <div class="bar-track"><div class="bar-fill" style="width:${pct}%"></div></div>
                     <div class="bar-val">${qty}</div>
                 </div>
             `;
@@ -216,16 +206,13 @@ async function loadSalesChart() {
     }
 }
 
-// ── Low stock alerts ──────────────────────────────────────────────────────────
 function renderLowStockAlerts(products) {
     const section = document.getElementById('lowStockSection');
     const list = document.getElementById('lowStockList');
     const badge = document.getElementById('lowStockBadge');
     if (!section || !list) return;
-
     section.style.display = 'block';
     if (badge) badge.textContent = `${products.length} products`;
-
     list.innerHTML = products.map(p => `
         <div style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px;border-bottom:1px solid var(--border)">
             <div style="font-weight:500">${escapeHtml(p.name || '—')}</div>
@@ -237,7 +224,6 @@ function renderLowStockAlerts(products) {
     `).join('');
 }
 
-// ── Export CSV ────────────────────────────────────────────────────────────────
 async function exportProductsCSV() {
     try {
         const res = await fetch(ADMIN_API.products.list, {
@@ -272,16 +258,11 @@ let editingUserId = null;
 async function openUsersModal() {
     document.getElementById('usersModal').classList.add('show');
     document.body.style.overflow = 'hidden';
-
     if (!usersFetched) {
         document.getElementById('allUsersTable').innerHTML =
             `<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)">Loading users...</td></tr>`;
-
         const users = await fetchUsers();
-        if (users) {
-            allUsers = users;
-            usersFetched = true;
-        }
+        if (users) { allUsers = users; usersFetched = true; }
     }
     renderUsersTable(allUsers);
 }
@@ -316,17 +297,14 @@ function renderUsersTable(users) {
     const tbody = document.getElementById('allUsersTable');
     const countEl = document.getElementById('modalUserCount');
     if (countEl) countEl.textContent = `${users.length} user${users.length !== 1 ? 's' : ''} found`;
-
     if (!users.length) {
         tbody.innerHTML = `<tr><td colspan="9" style="text-align:center;padding:40px;color:var(--muted)">No users found</td></tr>`;
         return;
     }
-
     tbody.innerHTML = users.map(u => {
         const isDeleted = u.isDeleted || u.deleted || !!u.deletedAt;
         const isActive = u.isActive !== false;
         const created = u.createdAt ? new Date(u.createdAt).toLocaleDateString('en-IN') : '—';
-
         return `
             <tr>
                 <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)">${escapeHtml(String(u.id || '').slice(0, 8))}</td>
@@ -392,14 +370,10 @@ async function submitUserForm() {
     try {
         const res = await fetch(ADMIN_API.users.update(editingUserId), {
             method: 'PATCH',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            },
+            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
             body: JSON.stringify({ fullName: name, email, phone, isActive })
         });
         if (!res.ok) throw new Error(parseApiError(await res.text()));
-
         const fresh = await fetchUsers();
         if (fresh) { allUsers = fresh; usersFetched = true; }
         closeUserForm();
@@ -431,12 +405,27 @@ async function restoreUser(userId) {
 
 // ════════════════════════════════════════════════════════════════════════════
 //  CATEGORIES
+//
+//  DTOs used:
+//    CreateCategoryDto  → { name*, imageUrl, isActive, sortOrder, parentId }
+//    UpdateCategoryDto  → { name, imageUrl, isActive, sortOrder, parentId }
+//    CategoryFilterDto  → query params: name, isActive, isDeleted, parentId
+//    ReorderCategoriesDto → { orderedIds: UUID[] }
+//
+//  Endpoints:
+//    POST   /api/categories              createCategory
+//    PATCH  /api/categories/{id}         updateCategory
+//    DELETE /api/categories/{id}         softDelete  (blocked if active products/children exist)
+//    PATCH  /api/categories/{id}/restore restore
+//    PATCH  /api/categories/reorder      reorder
+//    GET    /api/categories/admin/all    listAll (admin, includes deleted, supports filter params)
 // ════════════════════════════════════════════════════════════════════════════
 let allCategories = [];
 let categoriesFetched = false;
 let editingCategoryId = null;
 let deletingCategoryId = null;
 
+// ── Open modal ────────────────────────────────────────────────────────────────
 async function openCategoriesModal() {
     document.getElementById('categoriesModal').classList.add('show');
     document.body.style.overflow = 'hidden';
@@ -460,9 +449,19 @@ function closeCategoriesModalOnBg(e) {
     if (e.target === document.getElementById('categoriesModal')) closeCategoriesModal();
 }
 
-async function fetchCategoriesFromApi() {
+// ── Fetch  GET /api/categories/admin/all  (CategoryFilterDto as query params) ─
+// Supports: name, isActive, isDeleted, parentId
+async function fetchCategoriesFromApi(filters = {}) {
     try {
-        const res = await fetch(ADMIN_API.categories.list, {
+        // Build query string from CategoryFilterDto fields
+        const params = new URLSearchParams();
+        if (filters.name)      params.set('name', filters.name);
+        if (filters.isActive   !== undefined && filters.isActive   !== '') params.set('isActive', filters.isActive);
+        if (filters.isDeleted  !== undefined && filters.isDeleted  !== '') params.set('isDeleted', filters.isDeleted);
+        if (filters.parentId   && filters.parentId !== 'ROOT')             params.set('parentId', filters.parentId);
+
+        const qs = params.toString() ? `?${params.toString()}` : '';
+        const res = await fetch(`${ADMIN_API.categories.adminAll}${qs}`, {
             headers: { 'Authorization': 'Bearer ' + token }
         });
         if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return null; }
@@ -477,6 +476,8 @@ async function fetchCategoriesFromApi() {
     }
 }
 
+// ── Render table ──────────────────────────────────────────────────────────────
+// CategoryResponseDto: { id, name, slug, imageUrl, isActive, sortOrder, parentId }
 function renderCategoriesTable(cats) {
     const tbody = document.getElementById('allCategoriesTable');
     const countEl = document.getElementById('modalCategoryCount');
@@ -489,8 +490,10 @@ function renderCategoriesTable(cats) {
 
     tbody.innerHTML = cats.map((c, idx) => {
         const isDeleted = c.isDeleted || c.deleted || !!c.deletedAt;
-        const isActive = c.isActive !== false;
-        const parentName = c.parentName || (allCategories.find(x => String(x.id) === String(c.parentId))?.name) || (c.parentId ? 'Has parent' : '—');
+        const isActive  = c.isActive !== false;
+        // parentId is a UUID in CategoryResponseDto — look up name from local cache
+        const parentName = allCategories.find(x => String(x.id) === String(c.parentId))?.name
+                        || (c.parentId ? 'Has parent' : '—');
 
         return `
             <tr data-id="${c.id}">
@@ -520,18 +523,37 @@ function renderCategoriesTable(cats) {
     }).join('');
 }
 
+// ── Client-side filtering using CategoryFilterDto fields ──────────────────────
+// The server supports these same fields as query params (sent in fetchCategoriesFromApi).
+// We do client-side filtering here for instant UX without extra API calls.
 function filterCategories() {
-    const q = (document.getElementById('categorySearchInput').value || '').toLowerCase();
-    const activeVal = document.getElementById('categoryActiveFilter').value;
-    const deletedVal = document.getElementById('categoryDeletedFilter').value;
-    const parentVal = document.getElementById('categoryParentFilter').value;
+    const name      = (document.getElementById('categorySearchInput').value || '').toLowerCase().trim();
+    const isActive  = document.getElementById('categoryActiveFilter').value;   // '' | 'true' | 'false'
+    const isDeleted = document.getElementById('categoryDeletedFilter').value;  // '' | 'true' | 'false'
+    const parentVal = document.getElementById('categoryParentFilter').value;   // '' | 'ROOT' | UUID
 
     let results = [...allCategories];
-    if (q) results = results.filter(c => (c.name || '').toLowerCase().includes(q));
-    if (activeVal !== '') results = results.filter(c => String(c.isActive !== false) === activeVal);
-    if (deletedVal !== '') results = results.filter(c => String(!!(c.isDeleted || c.deleted || c.deletedAt)) === deletedVal);
-    if (parentVal === 'ROOT') results = results.filter(c => !c.parentId);
-    else if (parentVal) results = results.filter(c => String(c.parentId) === parentVal);
+
+    // CategoryFilterDto.name — substring match on name
+    if (name) results = results.filter(c => (c.name || '').toLowerCase().includes(name));
+
+    // CategoryFilterDto.isActive
+    if (isActive !== '') results = results.filter(c => String(c.isActive !== false) === isActive);
+
+    // CategoryFilterDto.isDeleted
+    if (isDeleted !== '') {
+        results = results.filter(c => {
+            const deleted = !!(c.isDeleted || c.deleted || c.deletedAt);
+            return String(deleted) === isDeleted;
+        });
+    }
+
+    // CategoryFilterDto.parentId — 'ROOT' means parentId is null (root categories)
+    if (parentVal === 'ROOT') {
+        results = results.filter(c => !c.parentId);
+    } else if (parentVal) {
+        results = results.filter(c => String(c.parentId) === parentVal);
+    }
 
     renderCategoriesTable(results);
 }
@@ -552,41 +574,52 @@ function populateCategoryParentFilter(cats) {
         rootCats.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
 }
 
-// ── Category Form ─────────────────────────────────────────────────────────────
+// ── Open Add Category Form ────────────────────────────────────────────────────
+// Maps to CreateCategoryDto: { name*, imageUrl, isActive, sortOrder, parentId }
 function openCategoryForm() {
     editingCategoryId = null;
     document.getElementById('categoryFormTitle').textContent = 'Add Category_';
     document.getElementById('categoryBtnText').textContent = 'Add Category';
+
+    // Reset all CreateCategoryDto fields
     document.getElementById('cf_name').value = '';
     document.getElementById('cf_isActive').value = 'true';
     document.getElementById('cf_sortOrder').value = '';
     document.getElementById('cf_parentId').value = '';
     document.getElementById('cf_imageUrl').value = '';
-    document.getElementById('cf_imagePublicId').value = '';
+
     document.getElementById('categoryImagePreviewWrap').style.display = 'none';
     document.getElementById('categorySelectedFileName').style.display = 'none';
     document.getElementById('categoryFormError').style.display = 'none';
+
     populateCategoryParentSelect();
     document.getElementById('categoryFormModal').classList.add('show');
 }
 
+// ── Open Edit Category Form ───────────────────────────────────────────────────
+// Maps to UpdateCategoryDto: { name, imageUrl, isActive, sortOrder, parentId }
+// CategoryResponseDto fields pre-filled: id, name, slug (read-only), imageUrl,
+//   isActive, sortOrder, parentId
 function openEditCategoryForm(categoryId) {
     const c = allCategories.find(x => String(x.id) === String(categoryId));
     if (!c) return;
     editingCategoryId = categoryId;
     document.getElementById('categoryFormTitle').textContent = 'Edit Category_';
     document.getElementById('categoryBtnText').textContent = 'Save Changes';
-    document.getElementById('cf_name').value = c.name || '';
-    document.getElementById('cf_isActive').value = String(c.isActive !== false);
-    document.getElementById('cf_sortOrder').value = c.sortOrder || '';
-    document.getElementById('cf_parentId').value = c.parentId || '';
-    document.getElementById('cf_imageUrl').value = c.imageUrl || '';
-    document.getElementById('cf_imagePublicId').value = c.imagePublicId || '';
+
+    // Pre-fill from CategoryResponseDto
+    document.getElementById('cf_name').value      = c.name      || '';
+    document.getElementById('cf_isActive').value  = String(c.isActive !== false);
+    document.getElementById('cf_sortOrder').value = c.sortOrder  ?? '';
+    document.getElementById('cf_parentId').value  = c.parentId  || '';
+    document.getElementById('cf_imageUrl').value  = c.imageUrl  || '';
+
     document.getElementById('categoryFormError').style.display = 'none';
     document.getElementById('categorySelectedFileName').style.display = 'none';
 
+    // Show existing image preview if available
     const previewWrap = document.getElementById('categoryImagePreviewWrap');
-    const previewImg = document.getElementById('categoryImagePreview');
+    const previewImg  = document.getElementById('categoryImagePreview');
     if (c.imageUrl) {
         previewWrap.style.display = 'block';
         previewImg.src = c.imageUrl;
@@ -607,6 +640,7 @@ function closeCategoryFormOnBg(e) {
     if (e.target === document.getElementById('categoryFormModal')) closeCategoryForm();
 }
 
+// Populate parent select — exclude self to prevent circular dependency
 function populateCategoryParentSelect(selectedId = '') {
     const sel = document.getElementById('cf_parentId');
     if (!sel) return;
@@ -617,6 +651,7 @@ function populateCategoryParentSelect(selectedId = '') {
             .join('');
 }
 
+// ── Image upload for category ─────────────────────────────────────────────────
 async function handleCategoryImageUpload(input) {
     const file = input.files?.[0];
     if (!file) return;
@@ -643,15 +678,18 @@ async function handleCategoryImageUpload(input) {
         const url = data?.imageUrl || data?.url || data?.data?.imageUrl;
         if (!url) throw new Error('No URL returned');
 
+        // CreateCategoryDto / UpdateCategoryDto only has imageUrl — store it
         document.getElementById('cf_imageUrl').value = url;
-        document.getElementById('cf_imagePublicId').value = data?.publicId || data?.data?.publicId || '';
 
         const previewWrap = document.getElementById('categoryImagePreviewWrap');
-        const previewImg = document.getElementById('categoryImagePreview');
+        const previewImg  = document.getElementById('categoryImagePreview');
         if (previewWrap && previewImg) { previewWrap.style.display = 'block'; previewImg.src = url; }
         if (iconEl) iconEl.textContent = '✓';
         if (textEl) textEl.textContent = 'Image uploaded!';
-        setTimeout(() => { if (iconEl) iconEl.textContent = '🖼️'; if (textEl) textEl.textContent = 'Click to upload category image'; }, 2500);
+        setTimeout(() => {
+            if (iconEl) iconEl.textContent = '🖼️';
+            if (textEl) textEl.textContent = 'Click to upload category image';
+        }, 2500);
     } catch (e) {
         alert('Image upload failed: ' + e.message);
         if (iconEl) iconEl.textContent = '🖼️';
@@ -659,28 +697,42 @@ async function handleCategoryImageUpload(input) {
     }
 }
 
+// ── Submit form ───────────────────────────────────────────────────────────────
+// POST /api/categories       body: CreateCategoryDto  → { name*, imageUrl, isActive, sortOrder, parentId }
+// PATCH /api/categories/{id} body: UpdateCategoryDto  → { name, imageUrl, isActive, sortOrder, parentId }
 async function submitCategoryForm() {
-    const name = document.getElementById('cf_name').value.trim();
-    const isActive = document.getElementById('cf_isActive').value === 'true';
-    const sortOrder = document.getElementById('cf_sortOrder').value;
-    const parentId = document.getElementById('cf_parentId').value || null;
-    const imageUrl = document.getElementById('cf_imageUrl').value || null;
-    const imagePublicId = document.getElementById('cf_imagePublicId').value || null;
-    const errEl = document.getElementById('categoryFormError');
-    const btn = document.getElementById('categorySubmitBtn');
+    const name       = document.getElementById('cf_name').value.trim();
+    const isActive   = document.getElementById('cf_isActive').value === 'true';
+    const sortOrder  = document.getElementById('cf_sortOrder').value;
+    const parentId   = document.getElementById('cf_parentId').value  || null;  // UUID or null
+    const imageUrl   = document.getElementById('cf_imageUrl').value  || null;
+
+    const errEl  = document.getElementById('categoryFormError');
+    const btn    = document.getElementById('categorySubmitBtn');
     const isEdit = editingCategoryId !== null;
 
     errEl.style.display = 'none';
+
+    // @NotBlank on CreateCategoryDto.name
     if (!name) { errEl.textContent = 'Category name is required.'; errEl.style.display = 'block'; return; }
 
     btn.disabled = true;
     document.getElementById('categoryBtnText').textContent = isEdit ? 'Saving...' : 'Adding...';
 
-    const payload = { name, isActive, parentId, imageUrl, imagePublicId };
-    if (sortOrder) payload.sortOrder = Number(sortOrder);
+    // Build payload matching CreateCategoryDto / UpdateCategoryDto exactly
+    const payload = {
+        name,
+        isActive,
+        parentId,   // UUID (string) or null
+        imageUrl,   // URL string or null
+    };
+    // sortOrder is Integer — include only if provided
+    if (sortOrder !== '' && sortOrder !== null && sortOrder !== undefined) {
+        payload.sortOrder = Number(sortOrder);
+    }
 
     try {
-        const url = isEdit ? ADMIN_API.categories.update(editingCategoryId) : ADMIN_API.categories.create;
+        const url    = isEdit ? ADMIN_API.categories.update(editingCategoryId) : ADMIN_API.categories.create;
         const method = isEdit ? 'PATCH' : 'POST';
         const res = await fetch(url, {
             method,
@@ -689,10 +741,12 @@ async function submitCategoryForm() {
         });
         if (!res.ok) throw new Error(parseApiError(await res.text()));
 
+        // Refresh local cache from server
         const fresh = await fetchCategoriesFromApi();
         if (fresh) { allCategories = fresh; categoriesFetched = true; }
         closeCategoryForm();
         renderCategoriesTable(allCategories);
+        populateCategoryParentFilter(allCategories);
         alert(isEdit ? 'Category updated successfully' : 'Category created successfully');
     } catch (e) {
         errEl.textContent = e.message || 'Failed to save category';
@@ -703,6 +757,9 @@ async function submitCategoryForm() {
     }
 }
 
+// ── Delete ────────────────────────────────────────────────────────────────────
+// DELETE /api/categories/{id}
+// Blocked server-side if active products or child categories still exist
 function openDeleteCategoryConfirm(categoryId, categoryName) {
     deletingCategoryId = String(categoryId);
     document.getElementById('deleteCategoryName').textContent = categoryName;
@@ -732,14 +789,18 @@ async function confirmDeleteCategory() {
         if (fresh) { allCategories = fresh; categoriesFetched = true; }
         closeDeleteCategoryModal();
         renderCategoriesTable(allCategories);
+        populateCategoryParentFilter(allCategories);
         alert('Category deleted successfully');
     } catch (e) {
-        alert(e.message || 'Failed to delete category');
+        // Server blocks delete if active products/children exist — surface the message
+        alert('Delete failed: ' + (e.message || 'Unknown error'));
     } finally {
         btn.disabled = false; btn.textContent = 'Delete';
     }
 }
 
+// ── Restore ───────────────────────────────────────────────────────────────────
+// PATCH /api/categories/{id}/restore
 async function restoreCategory(categoryId) {
     if (!confirm('Restore this category?')) return;
     try {
@@ -751,23 +812,51 @@ async function restoreCategory(categoryId) {
         const fresh = await fetchCategoriesFromApi();
         if (fresh) { allCategories = fresh; categoriesFetched = true; }
         renderCategoriesTable(allCategories);
+        populateCategoryParentFilter(allCategories);
         alert('Category restored successfully');
     } catch (e) { alert(e.message || 'Failed to restore category'); }
 }
 
+// ── Reorder ───────────────────────────────────────────────────────────────────
+// PATCH /api/categories/reorder
+// Body: ReorderCategoriesDto → { orderedIds: UUID[] }
+// @NotNull @NotEmpty on orderedIds
 async function saveCategoryReorder() {
     const rows = document.querySelectorAll('#allCategoriesTable tr[data-id]');
     const orderedIds = Array.from(rows).map(r => r.dataset.id).filter(Boolean);
+
     if (!orderedIds.length) { alert('No categories to reorder'); return; }
+
     try {
         const res = await fetch(ADMIN_API.categories.reorder, {
             method: 'PATCH',
             headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+            // ReorderCategoriesDto shape exactly
             body: JSON.stringify({ orderedIds })
         });
         if (!res.ok) throw new Error(parseApiError(await res.text()));
+
+        // Refresh to reflect server-assigned sortOrder values
+        const fresh = await fetchCategoriesFromApi();
+        if (fresh) { allCategories = fresh; categoriesFetched = true; }
+        renderCategoriesTable(allCategories);
         alert('Category order saved successfully');
     } catch (e) { alert(e.message || 'Failed to save order'); }
+}
+
+// ── Populate category select inside product form ──────────────────────────────
+async function populateProductCategorySelect(selectedId = '') {
+    const sel = document.getElementById('pf_categoryId');
+    if (!sel) return;
+    if (!allCategories || !allCategories.length) {
+        const cats = await fetchCategoriesFromApi();
+        if (cats) { allCategories = cats; categoriesFetched = true; }
+    }
+    sel.innerHTML = '<option value="">Select Category</option>' +
+        (allCategories || [])
+            .filter(c => !(c.isDeleted || c.deleted || c.deletedAt))
+            .map(c => `<option value="${c.id}" ${String(c.id) === String(selectedId) ? 'selected' : ''}>${escapeHtml(c.name || 'Category')}</option>`)
+            .join('');
 }
 
 // ════════════════════════════════════════════════════════════════════════════
@@ -779,7 +868,6 @@ let ordersFetched = false;
 async function openOrdersModal() {
     document.getElementById('ordersModal').classList.add('show');
     document.body.style.overflow = 'hidden';
-
     if (!ordersFetched) {
         document.getElementById('allOrdersTable').innerHTML =
             `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Loading orders...</td></tr>`;
@@ -819,12 +907,10 @@ function renderOrdersTable(orders) {
     const tbody = document.getElementById('allOrdersTable');
     const countEl = document.getElementById('modalOrderCount');
     if (countEl) countEl.textContent = `${orders.length} order${orders.length !== 1 ? 's' : ''} found`;
-
     if (!orders.length) {
         tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">No orders found</td></tr>`;
         return;
     }
-
     tbody.innerHTML = orders.map(o => {
         const statusColors = {
             PENDING: 'badge-yellow', CONFIRMED: 'badge-accent', PROCESSING: 'badge-accent',
@@ -835,7 +921,6 @@ function renderOrdersTable(orders) {
         const placed = o.createdAt || o.placedAt ? new Date(o.createdAt || o.placedAt).toLocaleDateString('en-IN') : '—';
         const customerName = o.customerName || o.userName || o.user?.fullName || o.user?.name || '—';
         const total = Number(o.totalAmount || o.total || 0).toLocaleString('en-IN');
-
         return `
             <tr>
                 <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)">#${escapeHtml(String(o.id || '').slice(0, 8))}</td>
@@ -865,11 +950,11 @@ async function updateOrderStatus(orderId, action) {
     if (!action) return;
     const actorId = getActorId();
     const urlMap = {
-        'confirm': ADMIN_API.orders.confirm(orderId),
-        'processing': ADMIN_API.orders.processing(orderId),
-        'dispatch': ADMIN_API.orders.dispatch(orderId),
-        'out-for-delivery': ADMIN_API.orders.outForDelivery(orderId),
-        'deliver': ADMIN_API.orders.deliver(orderId),
+        'confirm':           ADMIN_API.orders.confirm(orderId),
+        'processing':        ADMIN_API.orders.processing(orderId),
+        'dispatch':          ADMIN_API.orders.dispatch(orderId),
+        'out-for-delivery':  ADMIN_API.orders.outForDelivery(orderId),
+        'deliver':           ADMIN_API.orders.deliver(orderId),
     };
     const url = urlMap[action];
     if (!url) return;
@@ -889,7 +974,6 @@ async function updateOrderStatus(orderId, action) {
 function filterOrders() {
     const q = (document.getElementById('orderSearch').value || '').toLowerCase();
     const status = document.getElementById('orderStatusFilter').value;
-
     let results = [...allOrders];
     if (q) results = results.filter(o =>
         (o.orderNumber || '').toLowerCase().includes(q) ||
@@ -916,7 +1000,6 @@ async function exportOrdersCSV() {
         o.totalAmount || o.total || 0,
         o.createdAt || o.placedAt || ''
     ].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
-
     const csv = [header.join(','), ...lines].join('\n');
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
@@ -947,7 +1030,6 @@ function closeCartAdminModalOnBg(e) {
 async function refreshCartAdminModal() {
     document.getElementById('cartAdminTable').innerHTML =
         `<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Loading users...</td></tr>`;
-
     const users = await fetchUsers();
     if (users) {
         cartAdminUsers = users;
@@ -1006,22 +1088,22 @@ async function deleteUserCart(userId, userName) {
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  STOCK MANAGER (stub — extend when you share StockController)
+//  STOCK MANAGER
 // ════════════════════════════════════════════════════════════════════════════
 function openStockInventoryModal() {
     alert('Stock Manager: Please share your StockController so the correct API routes can be wired up.');
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  PRODUCTS (products logic is in admin-products.js / same file below)
+//  PRODUCTS
 // ════════════════════════════════════════════════════════════════════════════
-
-// ── Products state ────────────────────────────────────────────────────────────
 let allProducts = [];
 let productsFetched = false;
 let filteredProducts = [];
 let editingProductId = null;
 let deletingProductId = null;
+
+const UNIT_TYPES = ['PCS', 'KG', 'G', 'LTR', 'ML', 'DOZEN', 'PACK', 'BOX', 'PAIR', 'SET'];
 
 function normalizeProduct(product) {
     if (!product) return product;
@@ -1081,6 +1163,8 @@ async function openProductsModal() {
     document.getElementById('productsModal').classList.add('show');
     document.body.style.overflow = 'hidden';
     if (!productsFetched) {
+        document.getElementById('allProductsTable').innerHTML =
+            `<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)">Loading products...</td></tr>`;
         const products = await fetchProducts();
         if (products) {
             allProducts = products;
@@ -1126,16 +1210,21 @@ function renderProductsTable(products) {
         else if (!isActive) { statusCls = 'badge-yellow'; statusTxt = 'Inactive'; }
         else if (stock <= 0) { statusCls = 'badge-yellow'; statusTxt = 'Out of Stock'; }
         const actions = isDeleted
-            ? `<div class="action-btns" style="justify-content:center"><button class="act" onclick="restoreProduct('${p.id}')">Restore</button></div>`
+            ? `<div class="action-btns" style="justify-content:center">
+                 <button class="act" onclick="restoreProduct('${p.id}')">Restore</button>
+               </div>`
             : `<div class="action-btns" style="justify-content:center;flex-wrap:wrap">
                 <button class="act" onclick="openEditForm('${p.id}')">Edit</button>
-                <button class="act" onclick="toggleProductActive('${p.id}')">⏻ Toggle</button>
+                <button class="act" onclick="toggleProductActive('${p.id}')" title="${isActive ? 'Deactivate' : 'Activate'}">⏻ ${isActive ? 'Deactivate' : 'Activate'}</button>
                 <button class="act del" onclick="openDeleteConfirm('${p.id}','${escapeHtml(String(p.name))}')">🗑 Delete</button>
                </div>`;
         return `
             <tr>
                 <td style="font-family:'Space Mono',monospace;font-size:12px;color:var(--muted)">#${escapeHtml(String(p.id).slice(0, 8))}</td>
-                <td>${image ? `<img src="${image}" alt="${escapeHtml(p.name)}" style="width:42px;height:42px;border-radius:10px;object-fit:cover;border:1px solid var(--border)">` : `<div class="user-av" style="width:42px;height:42px;background:var(--accent-dim);color:var(--accent)">${categoryEmoji(p.category)}</div>`}</td>
+                <td>${image
+                    ? `<img src="${image}" alt="${escapeHtml(p.name)}" style="width:42px;height:42px;border-radius:10px;object-fit:cover;border:1px solid var(--border)">`
+                    : `<div class="user-av" style="width:42px;height:42px;background:var(--accent-dim);color:var(--accent)">${categoryEmoji(p.category)}</div>`
+                }</td>
                 <td><div style="font-weight:600">${escapeHtml(p.name)}</div></td>
                 <td style="color:var(--muted)">${escapeHtml(p.sku)}</td>
                 <td style="color:var(--muted)">${escapeHtml(String(p.category || '—'))}</td>
@@ -1233,9 +1322,23 @@ function renderProductImagePreview() {
         else { nameWrap.style.display = 'none'; nameText.textContent = ''; }
     }
 
-    const existingHtml = productExistingImages.map((url, i) => `<div style="position:relative"><img src="${url}" style="width:74px;height:74px;border-radius:10px;object-fit:cover;border:1px solid var(--border)"><button type="button" onclick="removeProductImage('existing',${i})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border:none;border-radius:50%;background:var(--red);color:white;cursor:pointer">×</button></div>`).join('');
-    const uploadedHtml = productUploadedImages.map((url, i) => `<div style="position:relative"><img src="${url}" style="width:74px;height:74px;border-radius:10px;object-fit:cover;border:1px solid var(--border)"><button type="button" onclick="removeProductImage('uploaded',${i})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border:none;border-radius:50%;background:var(--red);color:white;cursor:pointer">×</button></div>`).join('');
-    const selectedHtml = selectedProductFiles.map((file, i) => `<div style="position:relative;width:74px;height:74px;border-radius:10px;border:1px dashed var(--border);display:grid;place-items:center;color:var(--muted);font-size:11px;text-align:center;padding:6px;background:var(--surface2)">${escapeHtml(file.name.slice(0, 18))}<button type="button" onclick="removeProductImage('selected',${i})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border:none;border-radius:50%;background:var(--red);color:white;cursor:pointer">×</button></div>`).join('');
+    const existingHtml = productExistingImages.map((url, i) =>
+        `<div style="position:relative">
+            <img src="${url}" style="width:74px;height:74px;border-radius:10px;object-fit:cover;border:1px solid var(--border)">
+            <button type="button" onclick="removeProductImage('existing',${i})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border:none;border-radius:50%;background:var(--red);color:white;cursor:pointer">×</button>
+        </div>`).join('');
+
+    const uploadedHtml = productUploadedImages.map((url, i) =>
+        `<div style="position:relative">
+            <img src="${url}" style="width:74px;height:74px;border-radius:10px;object-fit:cover;border:1px solid var(--border)">
+            <button type="button" onclick="removeProductImage('uploaded',${i})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border:none;border-radius:50%;background:var(--red);color:white;cursor:pointer">×</button>
+        </div>`).join('');
+
+    const selectedHtml = selectedProductFiles.map((file, i) =>
+        `<div style="position:relative;width:74px;height:74px;border-radius:10px;border:1px dashed var(--border);display:grid;place-items:center;color:var(--muted);font-size:11px;text-align:center;padding:6px;background:var(--surface2)">
+            ${escapeHtml(file.name.slice(0, 18))}
+            <button type="button" onclick="removeProductImage('selected',${i})" style="position:absolute;top:-6px;right:-6px;width:22px;height:22px;border:none;border-radius:50%;background:var(--red);color:white;cursor:pointer">×</button>
+        </div>`).join('');
 
     const total = productExistingImages.length + productUploadedImages.length + selectedProductFiles.length;
     if (!total) { wrap.style.display = 'none'; grid.innerHTML = ''; count.textContent = '0 images'; return; }
@@ -1275,31 +1378,26 @@ async function uploadProductImagesIfNeeded() {
     setTimeout(() => setProductUploadState('🖼️', 'Click to choose product images', false), 2500);
 }
 
-async function populateProductCategorySelect(selectedId = '') {
-    const sel = document.getElementById('pf_categoryId');
+function populateUnitSelect(selectedUnit = '') {
+    const sel = document.getElementById('pf_unit');
     if (!sel) return;
-    if (!allCategories || !allCategories.length) {
-        const cats = await fetchCategoriesFromApi();
-        if (cats) { allCategories = cats; categoriesFetched = true; }
-    }
-    sel.innerHTML = '<option value="">Select Category</option>' +
-        (allCategories || [])
-            .filter(c => !(c.isDeleted || c.deleted || c.deletedAt))
-            .map(c => `<option value="${c.id}" ${String(c.id) === String(selectedId) ? 'selected' : ''}>${escapeHtml(c.name || 'Category')}</option>`)
-            .join('');
+    sel.innerHTML = '<option value="">Select Unit</option>' +
+        UNIT_TYPES.map(u => `<option value="${u}" ${u === selectedUnit ? 'selected' : ''}>${u}</option>`).join('');
 }
 
 function openProductForm() {
     editingProductId = null;
     document.getElementById('formModalTitle').textContent = 'Add Product_';
     document.getElementById('formBtnText').textContent = 'Add Product';
-    ['pf_name','pf_sku','pf_barcode','pf_description','pf_mrp','pf_sellingPrice','pf_taxPercent','pf_unitValue'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+    ['pf_name','pf_sku','pf_barcode','pf_description','pf_mrp','pf_sellingPrice','pf_taxPercent','pf_unitValue'].forEach(id => {
+        const el = document.getElementById(id); if (el) el.value = '';
+    });
     document.getElementById('pf_categoryId').value = '';
-    document.getElementById('pf_unit').value = '';
     document.getElementById('pf_isActive').value = 'true';
     document.getElementById('formError').style.display = 'none';
     resetProductImageState();
     populateProductCategorySelect();
+    populateUnitSelect();
     document.getElementById('productFormModal').classList.add('show');
 }
 
@@ -1313,14 +1411,14 @@ async function openEditForm(productId) {
     document.getElementById('pf_sku').value = p.sku || '';
     document.getElementById('pf_barcode').value = p.barcode || '';
     document.getElementById('pf_description').value = p.description || '';
-    await populateProductCategorySelect(p.categoryId || '');
-    document.getElementById('pf_unit').value = p.unit || '';
     document.getElementById('pf_mrp').value = p.mrp ?? '';
     document.getElementById('pf_sellingPrice').value = p.sellingPrice ?? '';
     document.getElementById('pf_taxPercent').value = p.taxPercent ?? '';
     document.getElementById('pf_unitValue').value = p.unitValue ?? '';
     document.getElementById('pf_isActive').value = String(p.isActive !== false);
     document.getElementById('formError').style.display = 'none';
+    await populateProductCategorySelect(p.categoryId || '');
+    populateUnitSelect(p.unit || '');
     resetProductImageState();
     productExistingImages = Array.isArray(p.images) ? [...p.images] : [];
     renderProductImagePreview();
@@ -1348,33 +1446,67 @@ async function submitProductForm() {
     const taxRaw = document.getElementById('pf_taxPercent').value;
     const unitValueRaw = document.getElementById('pf_unitValue').value;
     const isActive = document.getElementById('pf_isActive').value === 'true';
+
     const errEl = document.getElementById('formError');
     const btn = document.getElementById('formSubmitBtn');
     const isEdit = editingProductId !== null;
+
     errEl.style.display = 'none';
-    if (!name || !sku || !categoryId || !unit) { errEl.textContent = 'Name, SKU, Category and Unit are required.'; errEl.style.display = 'block'; return; }
+
+    if (!name)       { errEl.textContent = 'Product name is required.'; errEl.style.display = 'block'; return; }
+    if (!sku)        { errEl.textContent = 'SKU is required.';          errEl.style.display = 'block'; return; }
+    if (!categoryId) { errEl.textContent = 'Category is required.';     errEl.style.display = 'block'; return; }
+    if (!unit)       { errEl.textContent = 'Unit is required.';         errEl.style.display = 'block'; return; }
+
     const actorId = getActorId();
-    if (!actorId) { errEl.textContent = 'Actor ID missing in localStorage.'; errEl.style.display = 'block'; return; }
+    if (!actorId) { errEl.textContent = 'Actor ID missing — please log in again.'; errEl.style.display = 'block'; return; }
+
     btn.disabled = true;
     document.getElementById('formBtnText').textContent = isEdit ? 'Saving...' : 'Adding...';
+
     try {
         await uploadProductImagesIfNeeded();
         const images = getEffectiveProductImages();
-        if (images.length < 1) throw new Error('Please upload at least 1 product image.');
+        if (!isEdit && images.length < 1) throw new Error('Please upload at least 1 product image.');
         if (images.length > 10) throw new Error('Maximum 10 images allowed.');
-        const payload = { name, description: description || null, sku, barcode: barcode || null, mrp: mrpRaw === '' ? null : Number(mrpRaw), sellingPrice: sellingRaw === '' ? null : Number(sellingRaw), taxPercent: taxRaw === '' ? null : Number(taxRaw), unit, unitValue: unitValueRaw === '' ? null : Number(unitValueRaw), images, isActive, categoryId };
-        const url = isEdit ? ADMIN_API.products.update(editingProductId) : ADMIN_API.products.create;
+
+        const payload = {
+            name,
+            description: description || null,
+            sku,
+            barcode: barcode || null,
+            mrp:          mrpRaw       === '' ? null : Number(mrpRaw),
+            sellingPrice: sellingRaw   === '' ? null : Number(sellingRaw),
+            taxPercent:   taxRaw       === '' ? null : Number(taxRaw),
+            unit,
+            unitValue:    unitValueRaw === '' ? null : Number(unitValueRaw),
+            images,
+            isActive,
+            categoryId
+        };
+
+        const url    = isEdit ? ADMIN_API.products.update(editingProductId) : ADMIN_API.products.create;
+        const method = isEdit ? 'PUT' : 'POST';
+
         const res = await fetch(url, {
-            method: isEdit ? 'PUT' : 'POST',
-            headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'X-Actor-Id': actorId },
+            method,
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json',
+                'X-Actor-Id': actorId
+            },
             body: JSON.stringify(payload)
         });
         if (!res.ok) throw new Error(parseApiError(await res.text()));
+
         const fresh = await fetchProducts();
-        if (fresh) { allProducts = fresh; productsFetched = true; }
+        if (fresh) {
+            allProducts = fresh; productsFetched = true;
+            document.getElementById('statProductCount').textContent = fresh.length.toLocaleString();
+            document.getElementById('statProductChange').textContent = `${fresh.length} products listed`;
+        }
         closeProductForm();
         renderProductsModal(allProducts);
-        document.getElementById('statProductCount').textContent = allProducts.length.toLocaleString();
         alert(isEdit ? 'Product updated successfully' : 'Product created successfully');
     } catch (e) {
         errEl.textContent = e.message || 'Failed to save product';
@@ -1387,42 +1519,124 @@ async function submitProductForm() {
 
 async function toggleProductActive(productId) {
     const actorId = getActorId();
-    if (!actorId) { alert('Missing actor id'); return; }
+    if (!actorId) { alert('Missing actor id — please log in again.'); return; }
     try {
-        const res = await fetch(ADMIN_API.products.toggleActive(productId), { method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': actorId } });
+        const res = await fetch(ADMIN_API.products.toggleActive(productId), {
+            method: 'PATCH',
+            headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': actorId }
+        });
         if (!res.ok) throw new Error(parseApiError(await res.text()));
         const fresh = await fetchProducts();
         if (fresh) { allProducts = fresh; productsFetched = true; }
         renderProductsModal(allProducts);
-    } catch (e) { alert(e.message || 'Failed to toggle'); }
+    } catch (e) { alert(e.message || 'Failed to toggle product status'); }
 }
 
 async function restoreProduct(productId) {
     const actorId = getActorId();
-    if (!actorId) { alert('Missing actor id'); return; }
+    if (!actorId) { alert('Missing actor id — please log in again.'); return; }
+    if (!confirm('Restore this product?')) return;
     try {
-        const res = await fetch(ADMIN_API.products.restore(productId), { method: 'PATCH', headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': actorId } });
+        const res = await fetch(ADMIN_API.products.restore(productId), {
+            method: 'PATCH',
+            headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': actorId }
+        });
         if (!res.ok) throw new Error(parseApiError(await res.text()));
         const fresh = await fetchProducts();
         if (fresh) { allProducts = fresh; productsFetched = true; }
         renderProductsModal(allProducts);
-    } catch (e) { alert(e.message || 'Failed to restore'); }
+        alert('Product restored successfully');
+    } catch (e) { alert(e.message || 'Failed to restore product'); }
 }
 
-async function openBulkPricePrompt() {
-    const raw = prompt('Enter bulk price items as JSON array:\n[{"productId":"uuid","mrp":120,"sellingPrice":100}]');
-    if (!raw) return;
+async function openBulkPriceModal() {
+    document.getElementById('bulkPriceModal').classList.add('show');
+    document.getElementById('bulkPriceRows').innerHTML = '';
+    document.getElementById('bulkPriceError').style.display = 'none';
+    addBulkPriceRow();
+}
+
+function closeBulkPriceModal() { document.getElementById('bulkPriceModal').classList.remove('show'); }
+
+function closeBulkPriceModalOnBg(e) {
+    if (e.target === document.getElementById('bulkPriceModal')) closeBulkPriceModal();
+}
+
+function addBulkPriceRow(productId = '', mrp = '', sellingPrice = '') {
+    const container = document.getElementById('bulkPriceRows');
+    const rowId = `bpr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const div = document.createElement('div');
+    div.id = rowId;
+    div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:center;margin-bottom:10px';
+    div.innerHTML = `
+        <select class="bpr-product" style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:Inter,sans-serif;font-size:13px;outline:none">
+            <option value="">Select Product</option>
+            ${allProducts.filter(p => !p.isDeleted).map(p =>
+                `<option value="${p.id}" ${p.id === productId ? 'selected' : ''}>${escapeHtml(p.name)} (${escapeHtml(p.sku)})</option>`
+            ).join('')}
+        </select>
+        <input type="number" class="bpr-mrp" min="0" step="0.01" placeholder="MRP" value="${mrp}"
+            style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:Inter,sans-serif;font-size:13px;outline:none" />
+        <input type="number" class="bpr-selling" min="0" step="0.01" placeholder="Selling Price" value="${sellingPrice}"
+            style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-family:Inter,sans-serif;font-size:13px;outline:none" />
+        <button type="button" onclick="document.getElementById('${rowId}').remove()"
+            style="background:var(--red-dim);border:1px solid rgba(239,68,68,0.3);border-radius:8px;padding:9px 12px;color:var(--red);cursor:pointer;font-size:14px">✕</button>
+    `;
+    container.appendChild(div);
+}
+
+async function submitBulkPrices() {
+    const errEl = document.getElementById('bulkPriceError');
+    const btn = document.getElementById('bulkPriceSubmitBtn');
     const actorId = getActorId();
-    if (!actorId) { alert('Missing actor id'); return; }
+    errEl.style.display = 'none';
+
+    if (!actorId) { errEl.textContent = 'Actor ID missing — please log in again.'; errEl.style.display = 'block'; return; }
+
+    const rows = document.querySelectorAll('#bulkPriceRows > div');
+    if (!rows.length) { errEl.textContent = 'Add at least one row.'; errEl.style.display = 'block'; return; }
+
+    const items = [];
+    let hasError = false;
+    rows.forEach(row => {
+        const productId  = row.querySelector('.bpr-product')?.value;
+        const mrpVal     = row.querySelector('.bpr-mrp')?.value;
+        const sellingVal = row.querySelector('.bpr-selling')?.value;
+        if (!productId) { hasError = true; return; }
+        const item = { productId };
+        if (mrpVal !== '')     item.mrp          = Number(mrpVal);
+        if (sellingVal !== '') item.sellingPrice  = Number(sellingVal);
+        items.push(item);
+    });
+
+    if (hasError)   { errEl.textContent = 'Please select a product for every row.'; errEl.style.display = 'block'; return; }
+    if (!items.length) { errEl.textContent = 'No valid rows to submit.'; errEl.style.display = 'block'; return; }
+
+    btn.disabled = true; btn.textContent = 'Updating...';
+
     try {
-        const items = JSON.parse(raw);
-        const res = await fetch(ADMIN_API.products.bulkPriceUpdate, { method: 'PUT', headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'X-Actor-Id': actorId }, body: JSON.stringify(items) });
+        const res = await fetch(ADMIN_API.products.bulkPriceUpdate, {
+            method: 'PUT',
+            headers: {
+                'Authorization': 'Bearer ' + token,
+                'Content-Type': 'application/json',
+                'X-Actor-Id': actorId
+            },
+            body: JSON.stringify(items)
+        });
         if (!res.ok) throw new Error(parseApiError(await res.text()));
+
         const fresh = await fetchProducts();
         if (fresh) { allProducts = fresh; productsFetched = true; }
+        closeBulkPriceModal();
         renderProductsModal(allProducts);
-        alert('Bulk price update completed');
-    } catch (e) { alert(e.message || 'Bulk price update failed'); }
+        alert(`Bulk price update completed for ${items.length} product(s)`);
+    } catch (e) {
+        errEl.textContent = e.message || 'Bulk price update failed';
+        errEl.style.display = 'block';
+    } finally {
+        btn.disabled = false; btn.textContent = 'Apply Price Updates';
+    }
 }
 
 function openDeleteConfirm(productId, productName) {
@@ -1443,15 +1657,23 @@ function closeDeleteModalOnBg(e) {
 async function confirmDelete() {
     if (!deletingProductId) return;
     const btn = document.getElementById('confirmDeleteBtn');
+    const actorId = getActorId();
+    if (!actorId) { alert('Missing actor id — please log in again.'); return; }
     btn.disabled = true; btn.textContent = 'Deleting...';
     try {
-        const res = await fetch(ADMIN_API.products.delete(deletingProductId), { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': getActorId() } });
+        const res = await fetch(ADMIN_API.products.delete(deletingProductId), {
+            method: 'DELETE',
+            headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': actorId }
+        });
         if (!res.ok) throw new Error(parseApiError(await res.text()));
         const fresh = await fetchProducts();
         if (fresh) { allProducts = fresh; productsFetched = true; }
         closeDeleteModal();
         renderProductsModal(allProducts);
-        alert('Product deleted successfully');
-    } catch (e) { alert(e.message || 'Failed to delete product'); }
-    finally { btn.disabled = false; btn.textContent = 'Delete'; }
+        alert('Product soft deleted successfully');
+    } catch (e) {
+        alert(e.message || 'Failed to delete product');
+    } finally {
+        btn.disabled = false; btn.textContent = 'Delete';
+    }
 }

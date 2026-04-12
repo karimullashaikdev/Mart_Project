@@ -64,7 +64,10 @@ const USER_API = {
         bySlug: (slug) => `/api/products/slug/${encodeURIComponent(slug)}`
     },
     categories: {
-        list: "/api/categories"
+        // GET /api/categories — returns CategoryTreeDto[] (nested tree, active only)
+        tree: "/api/categories",
+        // GET /api/categories/{idOrSlug} — returns CategoryResponseDto
+        byIdOrSlug: (idOrSlug) => `/api/categories/${encodeURIComponent(idOrSlug)}`
     },
     cart: {
         get: "/api/v1/cart",
@@ -91,6 +94,10 @@ let searchTimer = null;
 let cartItemCount = 0;
 let userData = {};
 let profileExists = false;
+
+// Flat map of id -> CategoryTreeDto, built after tree is loaded
+// Used to quickly look up category name/slug by id
+let categoryMap = {};
 
 // ── API helper ──
 async function apiFetch(url, options = {}) {
@@ -296,6 +303,185 @@ async function loadAddresses() {
     }
 }
 
+// ═══════════════════════════════════════════════
+// CATEGORIES  –  GET /api/categories
+//                GET /api/categories/{idOrSlug}
+// ═══════════════════════════════════════════════
+
+/**
+ * Recursively flattens a CategoryTreeDto[] into a plain array.
+ * Preserves depth so we can indent child categories in the filter bar.
+ *
+ * @param {CategoryTreeDto[]} nodes
+ * @param {number} depth
+ * @returns {{ id, name, slug, depth, children }[]}
+ */
+function flattenCategoryTree(nodes, depth = 0) {
+    const result = [];
+    for (const node of nodes) {
+        result.push({ ...node, depth });
+        if (Array.isArray(node.children) && node.children.length) {
+            result.push(...flattenCategoryTree(node.children, depth + 1));
+        }
+    }
+    return result;
+}
+
+/**
+ * Builds a lookup map of id → node from the flat list.
+ */
+function buildCategoryMap(flatList) {
+    const map = {};
+    for (const cat of flatList) {
+        map[cat.id] = cat;
+    }
+    return map;
+}
+
+/**
+ * Fetches GET /api/categories — returns CategoryTreeDto[] (nested).
+ * Flattens the tree for filter rendering and builds the id→category map.
+ */
+async function loadCategories() {
+    try {
+        const res = await apiFetch(USER_API.categories.tree);
+        if (!res.ok) return;
+
+        const json = await res.json();
+        // The endpoint wraps in ApiResponse<List<CategoryTreeDto>>
+        const tree = json.data || json || [];
+        const flatList = flattenCategoryTree(Array.isArray(tree) ? tree : []);
+
+        // Build global map for quick lookups
+        categoryMap = buildCategoryMap(flatList);
+
+        renderCategoryFilters(flatList);
+    } catch (err) {
+        console.warn("Failed to load categories", err);
+    }
+}
+
+/**
+ * Fetches GET /api/categories/{idOrSlug} — returns CategoryResponseDto.
+ * Can be called with either a UUID or a slug string.
+ *
+ * @param {string} idOrSlug  UUID or slug
+ * @returns {Promise<CategoryResponseDto>}
+ */
+async function fetchCategory(idOrSlug) {
+    const res = await apiFetch(USER_API.categories.byIdOrSlug(idOrSlug));
+    if (!res.ok) throw new Error(`Category not found: ${idOrSlug}`);
+    const json = await res.json();
+    return json.data || json;
+}
+
+/**
+ * Renders category filter pills from a flat list (preserving hierarchy indent).
+ * Root categories are shown normally; children get a subtle visual indent.
+ */
+function renderCategoryFilters(flatCategories) {
+    const container = document.getElementById("filterControls");
+    if (!container) return;
+
+    let html = `
+        <button class="filter-btn active" onclick="setFilter('all', '', this)">All</button>
+    `;
+
+    html += flatCategories.map(cat => {
+        const indent = cat.depth > 0 ? `style="margin-left:${cat.depth * 8}px;opacity:${cat.depth > 0 ? 0.85 : 1}"` : "";
+        const prefix = cat.depth > 0 ? "↳ " : "";
+        return `
+            <button class="filter-btn" ${indent}
+                    data-category-id="${cat.id}"
+                    data-category-slug="${cat.slug || ""}"
+                    onclick="setFilter('${(cat.name || "category").replace(/'/g, "\\'")}', '${cat.id}', this)">
+                ${prefix}${cat.name || "Category"}
+            </button>
+        `;
+    }).join("");
+
+    container.innerHTML = html;
+}
+
+/**
+ * Called when the user clicks a category filter pill.
+ * Also fetches the full CategoryResponseDto (by slug or id) and shows
+ * an optional info banner so users can see the category description/image.
+ */
+function setFilter(_label, categoryId, btn) {
+    currentCategoryId = categoryId || "";
+    currentPage = 0;
+
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+
+    // Show/hide the category info banner
+    if (categoryId) {
+        const slug = btn.dataset.categorySlug || categoryId;
+        loadCategoryBanner(slug);
+    } else {
+        hideCategoryBanner();
+    }
+
+    loadProducts(0);
+}
+
+/**
+ * Fetches GET /api/categories/{idOrSlug} and renders a small banner
+ * above the product grid showing the selected category's name + image.
+ */
+async function loadCategoryBanner(idOrSlug) {
+    const banner = document.getElementById("categoryBanner");
+    if (!banner) return;
+
+    // Show loading state immediately
+    banner.style.display = "flex";
+    banner.innerHTML = `<span class="cat-banner-name">Loading…</span>`;
+
+    try {
+        const cat = await fetchCategory(idOrSlug);
+
+        const imageStyle = cat.imageUrl
+            ? `background-image:url('${cat.imageUrl}');background-size:cover;background-position:center;`
+            : "background:var(--border);";
+
+        banner.innerHTML = `
+            ${cat.imageUrl
+                ? `<div class="cat-banner-img" style="${imageStyle}"></div>`
+                : ""
+            }
+            <div class="cat-banner-info">
+                <span class="cat-banner-name">${cat.name || ""}</span>
+                ${cat.slug ? `<span class="cat-banner-slug">/${cat.slug}</span>` : ""}
+            </div>
+            <button class="cat-banner-clear" onclick="clearCategoryFilter()" title="Clear filter">✕</button>
+        `;
+    } catch (err) {
+        // If fetch fails, just hide the banner silently
+        hideCategoryBanner();
+    }
+}
+
+function hideCategoryBanner() {
+    const banner = document.getElementById("categoryBanner");
+    if (banner) banner.style.display = "none";
+}
+
+/**
+ * Clears the active category filter and resets to "All".
+ */
+function clearCategoryFilter() {
+    currentCategoryId = "";
+    currentPage = 0;
+
+    document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
+    const allBtn = document.querySelector(".filter-btn");
+    if (allBtn) allBtn.classList.add("active");
+
+    hideCategoryBanner();
+    loadProducts(0);
+}
+
 // ── Products ──
 async function loadProducts(page = 0) {
     currentPage = page;
@@ -398,7 +584,11 @@ function renderProducts(products) {
     }).join("");
 }
 
-// ── Product detail APIs usage ──
+// ═══════════════════════════════════════════════
+// PRODUCT DETAIL MODAL  –  GET /api/products/{id}
+//                          GET /api/products/slug/{slug}
+// ═══════════════════════════════════════════════
+
 async function fetchProductById(productId) {
     const res = await apiFetch(USER_API.products.byId(productId));
     if (!res.ok) throw new Error("Failed to fetch product by id");
@@ -414,6 +604,9 @@ async function fetchProductBySlug(slug) {
 }
 
 async function openProductDetails(productId, slug) {
+    openPdmModal();
+    showPdmLoading();
+
     try {
         let product = null;
 
@@ -423,71 +616,185 @@ async function openProductDetails(productId, slug) {
             product = await fetchProductById(productId);
         }
 
-        showProductDetails(product);
+        renderPdmProduct(product);
     } catch (err) {
+        closePdmModal();
         showToast("❌ Failed to load product details", true);
     }
 }
 
-function showProductDetails(product) {
-    const name = product.name || "Product";
-    const sku = product.sku || "-";
-    const slug = product.slug || "-";
-    const price = Number(product.sellingPrice ?? 0).toLocaleString("en-IN");
-    const description = product.description || "No description available.";
-
-    alert(
-        `Product Details
-
-Name: ${name}
-SKU: ${sku}
-Slug: ${slug}
-Price: ₹${price}
-
-Description:
-${description}`
-    );
+// ── Modal open / close ──
+function openPdmModal() {
+    const overlay = document.getElementById("pdmOverlay");
+    if (!overlay) return;
+    overlay.classList.add("show");
+    document.body.style.overflow = "hidden";
 }
 
-// ── Categories ──
-async function loadCategories() {
-    try {
-        const res = await apiFetch(USER_API.categories.list);
-        if (!res.ok) return;
-
-        const json = await res.json();
-        const categories = json.data || json.content || json || [];
-        renderCategoryFilters(Array.isArray(categories) ? categories : []);
-    } catch (err) {
-        console.warn("Failed to load categories", err);
-    }
+function closePdmModal() {
+    const overlay = document.getElementById("pdmOverlay");
+    if (!overlay) return;
+    overlay.classList.remove("show");
+    document.body.style.overflow = "";
 }
 
-function renderCategoryFilters(categories) {
-    const container = document.getElementById("filterControls");
-    if (!container) return;
+// ── Loading skeleton ──
+function showPdmLoading() {
+    const modal = document.getElementById("pdmModal");
+    if (!modal) return;
 
-    let html = `
-        <button class="filter-btn active" onclick="setFilter('all', '', this)">All</button>
+    modal.innerHTML = `
+        <div class="pdm-image-strip">
+            <div class="pdm-image-placeholder">🛍️</div>
+            <button class="pdm-close-btn" onclick="closePdmModal()">✕</button>
+        </div>
+        <div class="pdm-skel">
+            <div class="pdm-skel-line" style="width:30%"></div>
+            <div class="pdm-skel-line" style="width:60%"></div>
+            <div class="pdm-skel-line" style="width:80%"></div>
+            <div class="pdm-skel-line" style="width:50%"></div>
+            <div class="pdm-skel-line" style="width:70%"></div>
+        </div>
     `;
-
-    html += categories.map(category => `
-        <button class="filter-btn" onclick="setFilter('${category.name || "category"}', '${category.id}', this)">
-            ${category.name || "Category"}
-        </button>
-    `).join("");
-
-    container.innerHTML = html;
 }
 
-function setFilter(_label, categoryId, btn) {
+// ── Render full product detail ──
+function renderPdmProduct(p) {
+    const modal = document.getElementById("pdmModal");
+    if (!modal) return;
+
+    const images = Array.isArray(p.images) && p.images.length ? p.images : [];
+    const primaryImage = images[0] || "";
+    const sellingPrice = Number(p.sellingPrice ?? 0);
+    const mrp = Number(p.mrp ?? 0);
+    const availableQty = Number(p.availableQuantity ?? 0);
+    const inStock = p.inStock ?? (availableQty > 0);
+    const safeName = String(p.name || "Product").replace(/'/g, "\\'");
+    const discount = mrp > sellingPrice && mrp > 0
+        ? Math.round(((mrp - sellingPrice) / mrp) * 100)
+        : 0;
+
+    const thumbsHtml = images.length > 1 ? `
+        <div class="pdm-thumbs" id="pdmThumbs">
+            ${images.map((img, i) => `
+                <div class="pdm-thumb ${i === 0 ? "active" : ""}" onclick="pdmSelectImage('${img}', this)">
+                    <img src="${img}" alt="img ${i + 1}" />
+                </div>
+            `).join("")}
+        </div>
+    ` : "";
+
+    const unitPill = p.unitValue && p.unit
+        ? `<div class="pdm-meta-pill">${p.unitValue} ${p.unit}</div>`
+        : "";
+
+    // Resolve category name from our local map if not provided directly
+    const categoryName = p.categoryName
+        || (p.categoryId && categoryMap[p.categoryId]?.name)
+        || "";
+
+    // Category pill — clicking it filters products by this category
+    const categoryPill = categoryName ? `
+        <div class="pdm-category-pill"
+             onclick="closePdmModal(); filterByCategoryFromModal('${p.categoryId || ""}', '${p.categorySlug || ""}', '${categoryName.replace(/'/g, "\\'")}')">
+            ${categoryName} ↗
+        </div>
+    ` : "";
+
+    modal.innerHTML = `
+        <!-- Image strip -->
+        <div class="pdm-image-strip" id="pdmImageStrip">
+            ${primaryImage
+                ? `<img id="pdmMainImage" src="${primaryImage}" alt="${p.name || 'product'}" />`
+                : `<div class="pdm-image-placeholder">🛒</div>`
+            }
+            <button class="pdm-close-btn" onclick="closePdmModal()">✕</button>
+            <div class="pdm-stock-chip ${inStock ? "in" : "out"}">
+                ${inStock ? "In Stock" : "Out of Stock"}
+            </div>
+        </div>
+
+        ${thumbsHtml}
+
+        <!-- Body -->
+        <div class="pdm-body">
+            <!-- Left: info -->
+            <div class="pdm-info">
+                ${categoryPill}
+                <div class="pdm-name">${p.name || "Product"}</div>
+
+                ${unitPill ? `<div class="pdm-meta-row">${unitPill}</div>` : ""}
+
+                <div class="pdm-desc">${p.description || "No description available."}</div>
+            </div>
+
+            <!-- Right: pricing block -->
+            <div class="pdm-price-block">
+                <div>
+                    <div class="pdm-price-label">Price</div>
+                    <div class="pdm-price-value selling">₹${sellingPrice.toLocaleString("en-IN")}</div>
+                </div>
+
+                ${mrp > sellingPrice ? `
+                    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                        <div class="pdm-price-value mrp">₹${mrp.toLocaleString("en-IN")}</div>
+                        <div style="font-size:12px;background:rgba(45,106,79,0.12);color:var(--accent);font-weight:600;padding:3px 10px;border-radius:999px;">
+                            ${discount}% off
+                        </div>
+                    </div>
+                ` : ""}
+
+                <div class="pdm-divider"></div>
+
+                <div class="pdm-stock-row">
+                    <span class="pdm-stock-label">Availability</span>
+                    <span class="pdm-stock-value" style="color:${inStock ? "var(--accent)" : "#c0392b"}">
+                        ${inStock ? `${availableQty} in stock` : "Out of stock"}
+                    </span>
+                </div>
+
+                <button
+                    class="pdm-add-btn"
+                    ${!inStock ? "disabled" : ""}
+                    onclick="addToCart('${p.id}', '${safeName}')"
+                >
+                    ${inStock ? "🛒 Add to Cart" : "Out of Stock"}
+                </button>
+            </div>
+        </div>
+    `;
+}
+
+/**
+ * Called from the category pill inside the product detail modal.
+ * Closes the modal, activates the matching filter pill, loads the
+ * category banner via GET /api/categories/{idOrSlug}, then reloads products.
+ */
+function filterByCategoryFromModal(categoryId, categorySlug, categoryName) {
+    if (!categoryId && !categorySlug) return;
+
     currentCategoryId = categoryId || "";
     currentPage = 0;
 
+    // Activate the matching filter pill (by data-category-id)
     document.querySelectorAll(".filter-btn").forEach(b => b.classList.remove("active"));
-    btn.classList.add("active");
+    const matchingBtn = document.querySelector(`.filter-btn[data-category-id="${categoryId}"]`);
+    if (matchingBtn) {
+        matchingBtn.classList.add("active");
+    }
 
+    // Load banner using slug if available, otherwise id
+    loadCategoryBanner(categorySlug || categoryId);
     loadProducts(0);
+}
+
+// ── Switch main image on thumbnail click ──
+function pdmSelectImage(url, thumbEl) {
+    const mainImg = document.getElementById("pdmMainImage");
+    if (mainImg) mainImg.src = url;
+
+    document.querySelectorAll(".pdm-thumb").forEach(t => t.classList.remove("active"));
+    thumbEl.classList.add("active");
 }
 
 function onSearch() {
@@ -619,7 +926,6 @@ function showToast(message, isError = false) {
     }, 2500);
 }
 
-// Placeholder methods so page does not break
 function openCartModal() {
     showToast("Cart modal logic already exists in your page.");
 }
@@ -629,6 +935,6 @@ document.addEventListener("DOMContentLoaded", () => {
     loadAccountData();
     loadProfile();
     loadProducts(0);
-    loadCategories();
+    loadCategories(); // loads tree + builds categoryMap
     loadCartCount();
 });

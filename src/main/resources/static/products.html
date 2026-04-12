@@ -11,6 +11,84 @@
 		rel="stylesheet" />
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 	<link rel="stylesheet" href="/css/products.css" />
+
+	<style>
+		/* ── Category banner — shown when a category filter is active ── */
+		#categoryBanner {
+			display: none;
+			align-items: center;
+			gap: 12px;
+			margin: 0 auto 18px;
+			max-width: 1200px;
+			padding: 10px 16px;
+			background: var(--bg, #f9f9f9);
+			border: 1px solid var(--border, #e5e5e5);
+			border-radius: 12px;
+			font-family: 'DM Sans', sans-serif;
+			position: relative;
+		}
+
+		.cat-banner-img {
+			width: 40px;
+			height: 40px;
+			border-radius: 8px;
+			flex-shrink: 0;
+		}
+
+		.cat-banner-info {
+			display: flex;
+			flex-direction: column;
+			gap: 2px;
+			flex: 1;
+		}
+
+		.cat-banner-name {
+			font-size: 14px;
+			font-weight: 600;
+			color: var(--text, #1a1a1a);
+		}
+
+		.cat-banner-slug {
+			font-size: 11px;
+			color: var(--muted, #888);
+		}
+
+		.cat-banner-clear {
+			background: none;
+			border: none;
+			cursor: pointer;
+			font-size: 14px;
+			color: var(--muted, #888);
+			padding: 4px 8px;
+			border-radius: 6px;
+			transition: background 0.15s;
+		}
+
+		.cat-banner-clear:hover {
+			background: var(--border, #e5e5e5);
+		}
+
+		/* ── Category pill inside the product detail modal ── */
+		.pdm-category-pill {
+			display: inline-block;
+			font-size: 11px;
+			font-weight: 600;
+			letter-spacing: 0.05em;
+			text-transform: uppercase;
+			color: var(--accent, #2d6a4f);
+			background: rgba(45, 106, 79, 0.08);
+			border: 1px solid rgba(45, 106, 79, 0.2);
+			padding: 3px 10px;
+			border-radius: 999px;
+			cursor: pointer;
+			margin-bottom: 8px;
+			transition: background 0.15s;
+		}
+
+		.pdm-category-pill:hover {
+			background: rgba(45, 106, 79, 0.16);
+		}
+	</style>
 </head>
 
 <body>
@@ -33,6 +111,9 @@
 		</div>
 	</nav>
 
+	<!-- ─────────────────────────────────────────
+	     Profile drawer overlay + drawer
+	     ───────────────────────────────────────── -->
 	<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 
 	<div class="profile-drawer" id="profileDrawer">
@@ -131,6 +212,20 @@
 		</div>
 	</div>
 
+	<!-- ─────────────────────────────────────────
+	     Product Detail Modal
+	     GET /api/products/{productId}
+	     GET /api/products/slug/{slug}
+	     ───────────────────────────────────────── -->
+	<div class="pdm-overlay" id="pdmOverlay" onclick="handlePdmOverlayClick(event)">
+		<div class="pdm-modal" id="pdmModal">
+			<!-- content injected by renderPdmProduct() / showPdmLoading() -->
+		</div>
+	</div>
+
+	<!-- ─────────────────────────────────────────
+	     Page content
+	     ───────────────────────────────────────── -->
 	<div class="hero">
 		<div class="hero-label">Our Catalogue</div>
 		<h1>Discover our <em>finest</em><br />products</h1>
@@ -152,6 +247,14 @@
 		</select>
 	</div>
 
+	<!--
+	     ── Category banner ──────────────────────────────────────────────────
+	     Shown when a category filter is active.
+	     Populated by loadCategoryBanner() via GET /api/categories/{idOrSlug}
+	     (returns CategoryResponseDto: id, name, slug, imageUrl, isActive, sortOrder, parentId)
+	     ─────────────────────────────────────────────────────────────────── -->
+	<div id="categoryBanner"></div>
+
 	<div class="grid" id="productGrid"></div>
 
 	<div class="pagination-wrapper" id="paginationWrapper" style="display:none">
@@ -160,6 +263,23 @@
 	</div>
 
 	<div class="toast" id="toast"></div>
+
+	<script>
+		// Close PDM only when clicking the dark overlay backdrop (not the modal itself)
+		function handlePdmOverlayClick(e) {
+			if (e.target === document.getElementById("pdmOverlay")) {
+				closePdmModal();
+			}
+		}
+
+		// Close on Escape key
+		document.addEventListener("keydown", (e) => {
+			if (e.key === "Escape") {
+				closePdmModal();
+				closeDrawer();
+			}
+		});
+	</script>
 
 	<script src="/js/products.js" defer></script>
 </body>
