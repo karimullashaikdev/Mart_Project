@@ -35,7 +35,7 @@ public class CartController {
 	private final CartService cartService;
 
 	@GetMapping
-	@PreAuthorize("hasRole('CLIENT')")
+	@PreAuthorize("hasRole('USER')")
 	public ResponseEntity<ApiResponse<CartResponse>> getOrCreateCart(@CurrentUser UserPrincipal principal) {
 
 		CartResponse cart = cartService.getOrCreateCart(principal.getId(), principal.getId());
@@ -43,7 +43,7 @@ public class CartController {
 	}
 
 	@PostMapping("/items")
-	@PreAuthorize("hasRole('CLIENT')")
+	@PreAuthorize("hasRole('USER')")
 	public ResponseEntity<ApiResponse<CartResponse>> addItem(@CurrentUser UserPrincipal principal,
 			@Valid @RequestBody AddToCartRequest request) {
 
@@ -52,7 +52,7 @@ public class CartController {
 	}
 
 	@PatchMapping("/items/{itemId}")
-	@PreAuthorize("hasRole('CLIENT')")
+	@PreAuthorize("hasRole('USER')")
 	public ResponseEntity<ApiResponse<CartResponse>> updateItemQuantity(@CurrentUser UserPrincipal principal,
 			@PathVariable UUID itemId, @Valid @RequestBody UpdateCartItemRequest request) {
 
@@ -61,7 +61,7 @@ public class CartController {
 	}
 
 	@DeleteMapping("/items/{itemId}")
-	@PreAuthorize("hasRole('CLIENT')")
+	@PreAuthorize("hasRole('USER')")
 	public ResponseEntity<ApiResponse<CartResponse>> removeItem(@CurrentUser UserPrincipal principal,
 			@PathVariable UUID itemId) {
 
@@ -70,7 +70,7 @@ public class CartController {
 	}
 
 	@PostMapping("/coupon")
-	@PreAuthorize("hasRole('CLIENT')")
+	@PreAuthorize("hasRole('USER')")
 	public ResponseEntity<ApiResponse<CartResponse>> applyCoupon(@CurrentUser UserPrincipal principal,
 			@Valid @RequestBody ApplyCouponRequest request) {
 
@@ -79,7 +79,7 @@ public class CartController {
 	}
 
 	@DeleteMapping("/coupon")
-	@PreAuthorize("hasRole('CLIENT')")
+	@PreAuthorize("hasRole('USER')")
 	public ResponseEntity<ApiResponse<CartResponse>> removeCoupon(@CurrentUser UserPrincipal principal) {
 
 		CartResponse cart = cartService.removeCoupon(principal.getId(), principal.getId());

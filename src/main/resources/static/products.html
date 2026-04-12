@@ -222,7 +222,76 @@
 			<!-- content injected by renderPdmProduct() / showPdmLoading() -->
 		</div>
 	</div>
+	<!-- ─────────────────────────────────────────
+	     Cart Modal
+	     GET    /api/v1/cart
+	     POST   /api/v1/cart/items
+	     PATCH  /api/v1/cart/items/{id}
+	     DELETE /api/v1/cart/items/{id}
+	     POST   /api/v1/cart/coupon
+	     DELETE /api/v1/cart/coupon
+	     ───────────────────────────────────────── -->
+	<div class="cart-modal-overlay" id="cartModalOverlay" onclick="handleCartOverlayClick(event)">
+		<div class="cart-modal" id="cartModal">
+			<div class="cart-modal-head">
+				<div>
+					<div class="cart-modal-title">My Cart</div>
+					<div class="cart-modal-sub" id="cartModalSub">Review your selected items</div>
+				</div>
+				<button class="cart-close-btn" onclick="closeCartModal()">Close</button>
+			</div>
 
+			<div class="cart-modal-body">
+				<div class="cart-items-panel" id="cartItemsPanel">
+					<div class="cart-empty-state">Loading cart...</div>
+				</div>
+
+				<div class="cart-summary-panel">
+					<div class="cart-summary-card">
+						<div class="cart-section-title">Summary</div>
+
+						<div class="cart-summary-row">
+							<span>Items</span>
+							<strong id="cartSummaryItems">0</strong>
+						</div>
+
+						<div class="cart-summary-row">
+							<span>Subtotal</span>
+							<strong id="cartSummarySubtotal">₹0</strong>
+						</div>
+
+						<div class="cart-summary-row">
+							<span>Coupon</span>
+							<strong id="cartSummaryCoupon">—</strong>
+						</div>
+
+						<div class="cart-summary-row">
+							<span>Total</span>
+							<strong class="cart-summary-total" id="cartSummaryTotal">₹0</strong>
+						</div>
+
+						<div class="cart-coupon-row">
+							<input
+								type="text"
+								id="cartCouponInput"
+								class="cart-qty-input"
+								placeholder="Enter coupon code"
+								maxlength="50"
+							/>
+							<button class="add-btn" onclick="applyCoupon()">Apply</button>
+							<button class="filter-btn" onclick="removeCoupon()">Remove</button>
+						</div>
+
+						<div class="cart-inline-msg" id="cartInlineMsg"></div>
+
+						<div class="cart-note">
+							You can update quantity, remove items, and apply or remove a coupon directly from this cart.
+						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+	</div>
 	<!-- ─────────────────────────────────────────
 	     Page content
 	     ───────────────────────────────────────── -->

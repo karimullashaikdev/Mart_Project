@@ -859,6 +859,145 @@
 		</div>
 	</div>
 
+	<!-- ════════════════════════════════════════════════════════════
+	     STOCK MANAGER MODAL
+	     ════════════════════════════════════════════════════════════ -->
+	<div class="modal-overlay" id="stockInventoryModal"
+		onclick="closeStockInventoryModalOnBg(event)">
+		<div class="modal" style="width: 1250px; max-height: 92vh">
+			<div class="modal-head">
+				<div>
+					<div class="modal-title">Stock Manager_</div>
+					<div style="font-size: 12px; color: var(--muted); margin-top: 3px"
+						id="modalStockCount">Manage stock lifecycle for products</div>
+				</div>
+				<div style="display: flex; gap: 8px; align-items: center;">
+					<button class="btn-ghost"
+						style="font-size: 12px; padding: 7px 14px"
+						onclick="refreshStockInventoryModal()">↻ Refresh</button>
+					<button class="modal-close" onclick="closeStockInventoryModal()">✕</button>
+				</div>
+			</div>
+
+			<div
+				style="display: flex; gap: 10px; padding: 14px 24px; border-bottom: 1px solid var(--border); background: var(--surface2)">
+				<input id="stockSearchInput" type="text"
+					placeholder="🔍 Search by product name, SKU, or product id"
+					oninput="filterStockProducts()"
+					style="flex: 1; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 14px; color: var(--text); font-family: Inter, sans-serif; font-size: 13px; outline: none;" />
+				<button class="btn-ghost" style="font-size: 12px; padding: 7px 14px"
+					onclick="clearStockFilters()">Clear</button>
+			</div>
+
+			<div class="modal-body"
+				style="display: grid; grid-template-columns: 1.3fr 0.9fr; gap: 0; padding: 0;">
+				<div
+					style="border-right: 1px solid var(--border); overflow: auto; max-height: 75vh;">
+					<table>
+						<thead>
+							<tr>
+								<th>ID</th>
+								<th>Name</th>
+								<th>SKU</th>
+								<th>Available</th>
+								<th>Reserved</th>
+								<th style="text-align: center">Actions</th>
+							</tr>
+						</thead>
+						<tbody id="stockProductsTable">
+							<tr>
+								<td colspan="6"
+									style="text-align: center; padding: 32px; color: var(--muted)">Loading
+									stock products...</td>
+							</tr>
+						</tbody>
+					</table>
+				</div>
+
+				<div style="padding: 20px 22px; overflow: auto; max-height: 75vh;">
+					<div
+						style="font-family: 'Space Mono', monospace; font-size: 13px; margin-bottom: 14px;">Stock
+						Actions</div>
+
+					<div
+						style="font-size: 12px; color: var(--muted); margin-bottom: 12px;"
+						id="selectedStockProductLabel">Select a product to manage
+						stock.</div>
+
+					<input type="hidden" id="stockProductId" />
+
+					<div
+						style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+						<div>
+							<label
+								style="display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px;">Quantity</label>
+							<input id="stockQuantity" type="number" min="1"
+								style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text);" />
+						</div>
+						<div>
+							<label
+								style="display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px;">Delta</label>
+							<input id="stockDelta" type="number"
+								style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text);" />
+						</div>
+					</div>
+
+					<div style="margin-bottom: 12px;">
+						<label
+							style="display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px;">Reason</label>
+						<input id="stockReason" type="text"
+							style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text);" />
+					</div>
+
+					<div
+						style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;">
+						<div>
+							<label
+								style="display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px;">Order
+								ID</label> <input id="stockOrderId" type="text"
+								style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text);" />
+						</div>
+						<div>
+							<label
+								style="display: block; font-size: 11px; color: var(--muted); margin-bottom: 6px;">Return
+								Request ID</label> <input id="stockReturnRequestId" type="text"
+								style="width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px 12px; color: var(--text);" />
+						</div>
+					</div>
+
+					<div
+						style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 18px;">
+						<button class="btn-primary" onclick="addStock()">Add
+							Stock</button>
+						<button class="btn-ghost" onclick="adjustStock()">Adjust
+							Stock</button>
+						<button class="btn-ghost" onclick="reserveStock()">Reserve</button>
+						<button class="btn-ghost" onclick="releaseReservedStock()">Release</button>
+						<button class="btn-ghost" onclick="confirmStockSale()">Confirm
+							Sale</button>
+						<button class="btn-ghost" onclick="restockFromReturn()">Restock
+							Return</button>
+					</div>
+
+					<div style="display: flex; gap: 10px; margin-bottom: 18px;">
+						<button class="btn-ghost" onclick="loadLowStockProducts()"
+							style="flex: 1;">Low Stock</button>
+						<button class="btn-ghost" onclick="searchStockTransactions()"
+							style="flex: 1;">Search Transactions</button>
+					</div>
+
+					<div id="stockActionMessage"
+						style="display: none; font-size: 12px; padding: 10px 12px; border-radius: 8px; margin-bottom: 16px;"></div>
+
+					<div
+						style="font-family: 'Space Mono', monospace; font-size: 13px; margin-bottom: 10px;">Transactions</div>
+					<div id="stockTransactionsPanel"
+						style="border: 1px solid var(--border); border-radius: 10px; background: var(--bg); min-height: 180px; padding: 12px; color: var(--muted); font-size: 12px;">
+						No stock transactions loaded yet.</div>
+				</div>
+			</div>
+		</div>
+	</div>
 
 	<!-- ════════════════════════════════════════════════════════════
 	     USERS MODAL
