@@ -43,13 +43,6 @@ const ADMIN_API = {
 	},
 
 	// ── Categories ────────────────────────────────────────────────────────────
-	// POST   /api/categories                → createCategory  (CreateCategoryDto)
-	// PATCH  /api/categories/{id}           → updateCategory  (UpdateCategoryDto)
-	// DELETE /api/categories/{id}           → softDelete
-	// PATCH  /api/categories/{id}/restore   → restore
-	// PATCH  /api/categories/reorder        → reorder         (ReorderCategoriesDto → { orderedIds: UUID[] })
-	// GET    /api/categories/admin/all      → listAll (admin, includes deleted, supports CategoryFilterDto params)
-	// GET    /api/categories                → tree (public, active only)
 	categories: {
 		adminAll: `${BASE}/api/categories/admin/all`,
 		tree: `${BASE}/api/categories`,
@@ -62,9 +55,10 @@ const ADMIN_API = {
 
 	// ── Users ─────────────────────────────────────────────────────────────────
 	users: {
-		list: `${BASE}/api/users`,
+		me:      `${BASE}/api/users/me`,
+		list:    `${BASE}/api/users`,
 		getById: (id) => `${BASE}/api/users/${id}`,
-		update: (id) => `${BASE}/api/users/${id}`,
+		update:  (id) => `${BASE}/api/users/${id}`,
 		restore: (id) => `${BASE}/api/users/${id}/restore`,
 	},
 
@@ -79,26 +73,32 @@ const ADMIN_API = {
 		outForDelivery: (id) => `${BASE}/api/admin/orders/${id}/out-for-delivery`,
 		deliver: (id) => `${BASE}/api/admin/orders/${id}/deliver`,
 		delete: (id) => `${BASE}/api/admin/orders/${id}`,
+		updateItemStatus: (itemId) => `${BASE}/api/admin/order-items/${itemId}/status`,
 	},
 
 	// ── Cart (admin) ──────────────────────────────────────────────────────────
+	// NOTE: Your CartController only exposes one admin endpoint:
+	//   DELETE /api/v1/cart/admin?userId=...
+	// There is NO admin GET endpoint to view another user's cart in your controller.
+	// The view-cart feature below attempts GET /api/v1/cart/admin?userId=...
+	// If your backend doesn't support it, it will show an appropriate error.
+	// To add backend support, add: GET /api/v1/cart/admin?userId=... in CartController.
 	cart: {
-		deleteByUser: (uid) => `${BASE}/api/v1/cart?userId=${uid}`,
+		deleteByUser: (uid) => `${BASE}/api/v1/cart/admin?userId=${encodeURIComponent(uid)}`,
+		viewByUser:   (uid) => `${BASE}/api/v1/cart/admin?userId=${encodeURIComponent(uid)}`,
 	},
 
-	// ── Stock Manager (admin) ───────────────────────────────────────────────
-	// Assumed base path: /api/admin/stocks
-	// Change here only if your StockController uses another base path
+	// ── Stock Manager (admin) ──────────────────────────────────────────────────
 	stocks: {
-	    byProduct:       (productId) => `${BASE}/api/user/stocks/${productId}`,
-	    add:             (productId) => `${BASE}/api/admin/stocks/${productId}/add`,
-	    adjust:          (productId) => `${BASE}/api/admin/stocks/${productId}/adjust`,
-	    reserve:         (productId) => `${BASE}/api/admin/stocks/${productId}/reserve`,
-	    release:         (productId) => `${BASE}/api/admin/stocks/${productId}/release`,
-	    confirmSale:     (productId) => `${BASE}/api/admin/stocks/${productId}/confirm-sale`,
-	    restockReturn:   (productId) => `${BASE}/api/admin/stocks/${productId}/restock-return`,
-	    lowStock:                 `${BASE}/api/admin/stocks/low-stock`,
-	    searchTransactions: (productId) => `${BASE}/api/admin/stocks/${productId}/transactions/search`
+		byProduct:          (productId) => `${BASE}/api/user/stocks/${productId}`,
+		add:                (productId) => `${BASE}/api/admin/stocks/${productId}/add`,
+		adjust:             (productId) => `${BASE}/api/admin/stocks/${productId}/adjust`,
+		reserve:            (productId) => `${BASE}/api/admin/stocks/${productId}/reserve`,
+		release:            (productId) => `${BASE}/api/admin/stocks/${productId}/release`,
+		confirmSale:        (productId) => `${BASE}/api/admin/stocks/${productId}/confirm-sale`,
+		restockReturn:      (productId) => `${BASE}/api/admin/stocks/${productId}/restock-return`,
+		lowStock:                         `${BASE}/api/admin/stocks/low-stock`,
+		searchTransactions: (productId) => `${BASE}/api/admin/stocks/${productId}/transactions/search`,
 	},
 
 	// ── Image upload ──────────────────────────────────────────────────────────
@@ -109,9 +109,9 @@ const ADMIN_API = {
 
 	// ── Auth ──────────────────────────────────────────────────────────────────
 	auth: {
-		login: `${BASE}/api/auth/login`,
-		register: `${BASE}/api/auth/register`,
-		logout: `${BASE}/api/auth/logout`,
+		login:        `${BASE}/api/auth/login`,
+		register:     `${BASE}/api/auth/register`,
+		logout:       `${BASE}/api/auth/logout`,
 		refreshToken: `${BASE}/api/auth/refresh-token`,
 	},
 };
@@ -167,14 +167,15 @@ function logout() {
 // ── 10. Debug log ─────────────────────────────────────────────────────────────
 console.log('[admin-api-fix] All routes loaded. BASE:', BASE || '(same origin)');
 console.table({
-	'Products list': ADMIN_API.products.list,
-	'Products create': ADMIN_API.products.create,
-	'Products bulk-price': ADMIN_API.products.bulkPriceUpdate,
-	'Categories admin/all': ADMIN_API.categories.adminAll,
-	'Categories create': ADMIN_API.categories.create,
+	'Products list':      ADMIN_API.products.list,
+	'Products create':    ADMIN_API.products.create,
+	'Products bulk-price':ADMIN_API.products.bulkPriceUpdate,
+	'Categories admin/all':ADMIN_API.categories.adminAll,
+	'Categories create':  ADMIN_API.categories.create,
 	'Categories reorder': ADMIN_API.categories.reorder,
-	'Users list': ADMIN_API.users.list,
-	'Orders list': ADMIN_API.orders.list,
-	'Image upload': ADMIN_API.images.upload,
-	'Cart delete': ADMIN_API.cart.deleteByUser('USER_ID'),
+	'Users list':         ADMIN_API.users.list,
+	'Orders list':        ADMIN_API.orders.list,
+	'Image upload':       ADMIN_API.images.upload,
+	'Cart delete':        ADMIN_API.cart.deleteByUser('USER_ID'),
+	'Cart view':          ADMIN_API.cart.viewByUser('USER_ID'),
 });

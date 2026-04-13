@@ -1,8 +1,10 @@
 package com.karim.entity;
 
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
 
@@ -30,10 +32,12 @@ public class AgentPayout {
 
 	@Id
 	@GeneratedValue
+	@JdbcTypeCode(Types.VARCHAR)
 	private UUID id;
 
 	// FK: agent_id
 	@Column(name = "agent_id", nullable = false)
+	@JdbcTypeCode(Types.VARCHAR)
 	private UUID agentId;
 
 	@Column(name = "total_amount", nullable = false)
@@ -66,6 +70,7 @@ public class AgentPayout {
 
 	// FK: processed_by (admin/system user)
 	@Column(name = "processed_by")
+	@JdbcTypeCode(Types.VARCHAR)
 	private UUID processedBy;
 
 	@Column(name = "created_at", nullable = false, updatable = false)
@@ -82,6 +87,7 @@ public class AgentPayout {
 
 	// FK: deleted_by
 	@Column(name = "deleted_by")
+	@JdbcTypeCode(Types.VARCHAR)
 	private UUID deletedBy;
 
 	// Auto timestamps

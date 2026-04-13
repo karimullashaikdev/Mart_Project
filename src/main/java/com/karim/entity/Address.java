@@ -1,5 +1,6 @@
 package com.karim.entity;
 
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -74,9 +75,11 @@ public class Address {
 
 	// 🔁 Audit Fields
 	@Column(name = "created_by")
+	@JdbcTypeCode(Types.VARCHAR)
 	private UUID createdBy;
 
 	@Column(name = "updated_by")
+	@JdbcTypeCode(Types.VARCHAR)
 	private UUID updatedBy;
 
 	@Column(name = "created_at")
@@ -84,6 +87,12 @@ public class Address {
 
 	@Column(name = "updated_at")
 	private LocalDateTime updatedAt;
+	
+	@Column(name = "phone")
+	private String phone;
+
+	@Column(name = "landmark")
+	private String landmark;
 
 	// ❌ Soft Delete
 	@Column(name = "is_deleted")
@@ -93,6 +102,7 @@ public class Address {
 	private LocalDateTime deletedAt;
 
 	@Column(name = "deleted_by")
+	@JdbcTypeCode(Types.VARCHAR)
 	private UUID deletedBy;
 
 	// ✅ Lifecycle Hooks

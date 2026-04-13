@@ -1,10 +1,12 @@
 package com.karim.entity;
 
 import java.math.BigDecimal;
+import java.sql.Types;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.UpdateTimestamp;
 
 import jakarta.persistence.Column;
@@ -39,6 +41,7 @@ public class CartItem {
 
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
+	@JdbcTypeCode(Types.VARCHAR)
 	@Column(name = "id", updatable = false, nullable = false)
 	private UUID id;
 
@@ -69,13 +72,16 @@ public class CartItem {
 	private LocalDateTime deletedAt;
 
 	@Column(name = "deleted_by")
+	@JdbcTypeCode(Types.VARCHAR)
 	private UUID deletedBy;
 
 	// ── audit ──────────────────────────────────────────────────────────────
 	@Column(name = "created_by", nullable = false, updatable = false)
+	@JdbcTypeCode(Types.VARCHAR)
 	private UUID createdBy;
 
 	@Column(name = "updated_by")
+	@JdbcTypeCode(Types.VARCHAR)
 	private UUID updatedBy;
 
 	@CreationTimestamp

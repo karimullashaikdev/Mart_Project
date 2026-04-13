@@ -51,4 +51,12 @@ public interface CartItemRepository extends JpaRepository<CartItem, UUID> {
 			""")
 	void softDeleteAllByCartId(@Param("cartId") UUID cartId, @Param("actorId") UUID actorId,
 			@Param("now") LocalDateTime now);
+
+	@Query("""
+			    SELECT ci
+			    FROM CartItem ci
+			    WHERE ci.cart.id = :cartId
+			      AND ci.product.id = :productId
+			""")
+	Optional<CartItem> findByCartIdAndProductId(@Param("cartId") UUID cartId, @Param("productId") UUID productId);
 }

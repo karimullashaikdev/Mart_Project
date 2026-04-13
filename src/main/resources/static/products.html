@@ -11,9 +11,9 @@
 		rel="stylesheet" />
 	<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 	<link rel="stylesheet" href="/css/products.css" />
-
+	<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 	<style>
-		/* ── Category banner — shown when a category filter is active ── */
+		/* ── Category banner ── */
 		#categoryBanner {
 			display: none;
 			align-items: center;
@@ -27,48 +27,14 @@
 			font-family: 'DM Sans', sans-serif;
 			position: relative;
 		}
+		.cat-banner-img { width: 40px; height: 40px; border-radius: 8px; flex-shrink: 0; }
+		.cat-banner-info { display: flex; flex-direction: column; gap: 2px; flex: 1; }
+		.cat-banner-name { font-size: 14px; font-weight: 600; color: var(--text, #1a1a1a); }
+		.cat-banner-slug { font-size: 11px; color: var(--muted, #888); }
+		.cat-banner-clear { background: none; border: none; cursor: pointer; font-size: 14px; color: var(--muted, #888); padding: 4px 8px; border-radius: 6px; transition: background 0.15s; }
+		.cat-banner-clear:hover { background: var(--border, #e5e5e5); }
 
-		.cat-banner-img {
-			width: 40px;
-			height: 40px;
-			border-radius: 8px;
-			flex-shrink: 0;
-		}
-
-		.cat-banner-info {
-			display: flex;
-			flex-direction: column;
-			gap: 2px;
-			flex: 1;
-		}
-
-		.cat-banner-name {
-			font-size: 14px;
-			font-weight: 600;
-			color: var(--text, #1a1a1a);
-		}
-
-		.cat-banner-slug {
-			font-size: 11px;
-			color: var(--muted, #888);
-		}
-
-		.cat-banner-clear {
-			background: none;
-			border: none;
-			cursor: pointer;
-			font-size: 14px;
-			color: var(--muted, #888);
-			padding: 4px 8px;
-			border-radius: 6px;
-			transition: background 0.15s;
-		}
-
-		.cat-banner-clear:hover {
-			background: var(--border, #e5e5e5);
-		}
-
-		/* ── Category pill inside the product detail modal ── */
+		/* ── Category pill inside product detail modal ── */
 		.pdm-category-pill {
 			display: inline-block;
 			font-size: 11px;
@@ -84,10 +50,15 @@
 			margin-bottom: 8px;
 			transition: background 0.15s;
 		}
+		.pdm-category-pill:hover { background: rgba(45, 106, 79, 0.16); }
 
-		.pdm-category-pill:hover {
-			background: rgba(45, 106, 79, 0.16);
+		/* ── Category searchable dropdown enhancements ── */
+		#filterControls input[type="text"]:focus {
+			border-color: var(--accent);
+			box-shadow: 0 0 0 3px var(--accent-light);
 		}
+		#categoryDropdownList::-webkit-scrollbar { width: 4px; }
+		#categoryDropdownList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
 	</style>
 </head>
 
@@ -97,7 +68,7 @@
 			<span>✦</span> Karim
 		</div>
 		<div class="nav-right">
-			<a class="orders-btn" href="my-orders.html">📋 My Orders</a>
+			<button class="orders-btn" onclick="openMyOrdersModal()">📋 My Orders</button>
 
 			<button class="cart-btn" id="cartBtn" onclick="openCartModal()" style="display:none">
 				🛒 View Cart <span class="cart-count" id="cartCount">0</span>
@@ -111,9 +82,7 @@
 		</div>
 	</nav>
 
-	<!-- ─────────────────────────────────────────
-	     Profile drawer overlay + drawer
-	     ───────────────────────────────────────── -->
+	<!-- Profile drawer -->
 	<div class="drawer-overlay" id="drawerOverlay" onclick="closeDrawer()"></div>
 
 	<div class="profile-drawer" id="profileDrawer">
@@ -137,36 +106,30 @@
 		</div>
 
 		<div class="drawer-body">
+			<!-- Account Tab -->
 			<div class="tab-panel active" id="tab-account">
 				<div class="section-label">Account Details</div>
-
 				<div class="field-group">
 					<label>Full Name</label>
 					<input type="text" id="acc-name" placeholder="Your name" />
 				</div>
-
 				<div class="field-group">
 					<label>Email</label>
-					<div id="acc-email-display"
-						style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--muted);font-family:'DM Sans',sans-serif;">
-						—
-					</div>
+					<div id="acc-email-display" style="padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:8px;font-size:14px;color:var(--muted);font-family:'DM Sans',sans-serif;">—</div>
 					<input type="hidden" id="acc-email" />
 					<div style="font-size:11px;color:var(--muted);margin-top:5px;">Email cannot be changed</div>
 				</div>
-
 				<div class="field-group">
 					<label>Phone</label>
 					<input type="tel" id="acc-phone" placeholder="+91 XXXXX XXXXX" />
 				</div>
-
 				<div class="inline-msg" id="acc-msg"></div>
 				<button class="dbtn dbtn-primary" id="acc-save-btn" onclick="saveAccount()">Save Changes</button>
 			</div>
 
+			<!-- Profile Tab -->
 			<div class="tab-panel" id="tab-profile">
 				<div class="section-label">Profile Info</div>
-
 				<div class="avatar-upload-area">
 					<div class="avatar-preview" id="prf-avatar-preview">👤</div>
 					<div class="avatar-upload-controls">
@@ -178,15 +141,12 @@
 						<div class="avatar-upload-hint">JPG, PNG or WEBP · Max 5MB</div>
 					</div>
 				</div>
-
 				<input type="hidden" id="prf-avatar" />
 				<input type="hidden" id="prf-avatar-publicId" />
-
 				<div class="field-group">
 					<label>Date of Birth</label>
 					<input type="date" id="prf-dob" />
 				</div>
-
 				<div class="field-group">
 					<label>Gender</label>
 					<select id="prf-gender">
@@ -196,13 +156,64 @@
 						<option value="OTHER">Other</option>
 					</select>
 				</div>
-
 				<div class="inline-msg" id="prf-msg"></div>
 				<button class="dbtn dbtn-primary" id="prf-save-btn" onclick="saveProfile()">Save Profile</button>
 			</div>
 
+			<!-- Addresses Tab -->
 			<div class="tab-panel" id="tab-addresses">
-				<div class="section-label">Saved Addresses</div>
+				<div class="section-label">Add New Address</div>
+				<div class="address-form-card">
+					<div class="address-form-head">
+						<div>
+							<div class="address-form-title">New Address</div>
+							<div class="address-form-sub">Drop a pin on the map — address fields will fill automatically.</div>
+						</div>
+						<button class="dbtn dbtn-secondary address-mini-btn" type="button" onclick="resetAddressForm()">Reset</button>
+					</div>
+					<div class="map-picker-section">
+						<div class="map-picker-header">
+							<div class="map-picker-title"><span>📍</span> Pick Location on Map</div>
+							<div class="map-picker-actions">
+								<button type="button" class="map-loc-btn primary" id="useMyLocationBtn" onclick="useMyLocation()">🎯 Use My Location</button>
+							</div>
+						</div>
+						<div id="addrMapContainer"></div>
+						<div class="map-coords-display">
+							<div class="map-coord-chip" id="latChip"><span class="label">Lat</span><span id="addrLatDisplay">—</span></div>
+							<div class="map-coord-chip" id="lngChip"><span class="label">Lng</span><span id="addrLngDisplay">—</span></div>
+							<div class="map-address-preview" id="mapAddressPreview">Click on map or use "My Location" to pick coordinates</div>
+						</div>
+						<div class="map-instruction">🗺 Click anywhere on the map to drop a pin · Drag the pin to adjust</div>
+					</div>
+					<input type="hidden" id="addr-latitude" />
+					<input type="hidden" id="addr-longitude" />
+					<div class="field-group">
+						<label>Label *</label>
+						<div class="label-presets">
+							<button type="button" class="label-preset-btn" onclick="selectLabelPreset('🏠 Home', this)">🏠 Home</button>
+							<button type="button" class="label-preset-btn" onclick="selectLabelPreset('💼 Work', this)">💼 Work</button>
+							<button type="button" class="label-preset-btn" onclick="selectLabelPreset('📦 Other', this)">📦 Other</button>
+						</div>
+						<input type="text" id="addr-label" placeholder="Or type a custom label…" />
+					</div>
+					<div class="address-form-grid">
+						<div class="field-group"><label>Phone</label><input type="tel" id="addr-phone" placeholder="Phone number" /></div>
+						<div class="field-group address-span-2"><label>Address Line 1 *</label><input type="text" id="addr-line1" placeholder="House no, street, area" /></div>
+						<div class="field-group address-span-2"><label>Address Line 2</label><input type="text" id="addr-line2" placeholder="Apartment, landmark (optional)" /></div>
+						<div class="field-group"><label>City *</label><input type="text" id="addr-city" placeholder="City" /></div>
+						<div class="field-group"><label>State *</label><input type="text" id="addr-state" placeholder="State" /></div>
+						<div class="field-group"><label>Pincode *</label><input type="text" id="addr-pincode" placeholder="Pincode" /></div>
+						<div class="field-group"><label>Landmark</label><input type="text" id="addr-landmark" placeholder="Nearby landmark (optional)" /></div>
+					</div>
+					<div class="default-switch-row">
+						<div><div class="default-switch-text">Set as default address</div><div class="default-switch-sub">Used automatically at checkout</div></div>
+						<label class="switch"><input type="checkbox" id="addr-isDefault" /><span class="slider"></span></label>
+					</div>
+					<div class="inline-msg" id="addr-msg"></div>
+					<button class="dbtn dbtn-primary" id="addr-save-btn" type="button" onclick="saveNewAddress()">Save Address</button>
+				</div>
+				<div class="section-label" style="margin-top:0">Saved Addresses</div>
 				<div id="addressList"></div>
 			</div>
 		</div>
@@ -212,25 +223,52 @@
 		</div>
 	</div>
 
-	<!-- ─────────────────────────────────────────
-	     Product Detail Modal
-	     GET /api/products/{productId}
-	     GET /api/products/slug/{slug}
-	     ───────────────────────────────────────── -->
-	<div class="pdm-overlay" id="pdmOverlay" onclick="handlePdmOverlayClick(event)">
-		<div class="pdm-modal" id="pdmModal">
-			<!-- content injected by renderPdmProduct() / showPdmLoading() -->
+	<!-- Edit Address Modal -->
+	<div class="edit-addr-overlay" id="editAddrOverlay" onclick="handleEditAddrOverlayClick(event)">
+		<div class="edit-addr-modal">
+			<div class="edit-addr-head">
+				<div class="edit-addr-title">Edit Address</div>
+				<button class="drawer-close" onclick="closeEditAddrModal()">✕</button>
+			</div>
+			<div class="edit-addr-body">
+				<input type="hidden" id="edit-addr-id" />
+				<div class="field-group">
+					<label>Label *</label>
+					<div class="label-presets" id="editLabelPresets">
+						<button type="button" class="label-preset-btn" onclick="selectEditLabelPreset('🏠 Home', this)">🏠 Home</button>
+						<button type="button" class="label-preset-btn" onclick="selectEditLabelPreset('💼 Work', this)">💼 Work</button>
+						<button type="button" class="label-preset-btn" onclick="selectEditLabelPreset('📦 Other', this)">📦 Other</button>
+					</div>
+					<input type="text" id="edit-addr-label" placeholder="Or type a custom label…" />
+				</div>
+				<div class="field-group"><label>Phone</label><input type="tel" id="edit-addr-phone" placeholder="Phone number" /></div>
+				<div class="field-group"><label>Address Line 1 *</label><input type="text" id="edit-addr-line1" placeholder="House no, street, area" /></div>
+				<div class="field-group"><label>Address Line 2</label><input type="text" id="edit-addr-line2" placeholder="Apartment, landmark (optional)" /></div>
+				<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+					<div class="field-group"><label>City *</label><input type="text" id="edit-addr-city" placeholder="City" /></div>
+					<div class="field-group"><label>State *</label><input type="text" id="edit-addr-state" placeholder="State" /></div>
+					<div class="field-group"><label>Pincode *</label><input type="text" id="edit-addr-pincode" placeholder="Pincode" /></div>
+					<div class="field-group"><label>Landmark</label><input type="text" id="edit-addr-landmark" placeholder="Nearby landmark" /></div>
+				</div>
+				<div class="default-switch-row">
+					<div><div class="default-switch-text">Set as default address</div><div class="default-switch-sub">Used automatically at checkout</div></div>
+					<label class="switch"><input type="checkbox" id="edit-addr-isDefault" /><span class="slider"></span></label>
+				</div>
+				<div class="inline-msg" id="edit-addr-msg"></div>
+			</div>
+			<div class="edit-addr-footer">
+				<button class="dbtn dbtn-secondary" onclick="closeEditAddrModal()">Cancel</button>
+				<button class="dbtn dbtn-primary" id="edit-addr-save-btn" onclick="saveEditedAddress()">Save Changes</button>
+			</div>
 		</div>
 	</div>
-	<!-- ─────────────────────────────────────────
-	     Cart Modal
-	     GET    /api/v1/cart
-	     POST   /api/v1/cart/items
-	     PATCH  /api/v1/cart/items/{id}
-	     DELETE /api/v1/cart/items/{id}
-	     POST   /api/v1/cart/coupon
-	     DELETE /api/v1/cart/coupon
-	     ───────────────────────────────────────── -->
+
+	<!-- Product Detail Modal -->
+	<div class="pdm-overlay" id="pdmOverlay" onclick="handlePdmOverlayClick(event)">
+		<div class="pdm-modal" id="pdmModal"></div>
+	</div>
+
+	<!-- Cart Modal -->
 	<div class="cart-modal-overlay" id="cartModalOverlay" onclick="handleCartOverlayClick(event)">
 		<div class="cart-modal" id="cartModal">
 			<div class="cart-modal-head">
@@ -240,61 +278,41 @@
 				</div>
 				<button class="cart-close-btn" onclick="closeCartModal()">Close</button>
 			</div>
-
 			<div class="cart-modal-body">
 				<div class="cart-items-panel" id="cartItemsPanel">
 					<div class="cart-empty-state">Loading cart...</div>
 				</div>
-
 				<div class="cart-summary-panel">
 					<div class="cart-summary-card">
 						<div class="cart-section-title">Summary</div>
-
-						<div class="cart-summary-row">
-							<span>Items</span>
-							<strong id="cartSummaryItems">0</strong>
-						</div>
-
-						<div class="cart-summary-row">
-							<span>Subtotal</span>
-							<strong id="cartSummarySubtotal">₹0</strong>
-						</div>
-
-						<div class="cart-summary-row">
-							<span>Coupon</span>
-							<strong id="cartSummaryCoupon">—</strong>
-						</div>
-
-						<div class="cart-summary-row">
-							<span>Total</span>
-							<strong class="cart-summary-total" id="cartSummaryTotal">₹0</strong>
-						</div>
-
+						<div class="cart-summary-row"><span>Items</span><strong id="cartSummaryItems">0</strong></div>
+						<div class="cart-summary-row"><span>Product Cost</span><strong id="cartSummarySubtotal">₹0</strong></div>
+						<div class="cart-summary-row"><span>GST / Tax</span><strong id="cartSummaryTax">₹0</strong></div>
+						<div class="cart-summary-row"><span>Delivery Fee</span><strong id="cartSummaryDelivery">₹0</strong></div>
+						<div class="cart-summary-row"><span>Coupon</span><strong id="cartSummaryCoupon">—</strong></div>
+						<div class="cart-summary-row"><span>Total</span><strong class="cart-summary-total" id="cartSummaryTotal">₹0</strong></div>
 						<div class="cart-coupon-row">
-							<input
-								type="text"
-								id="cartCouponInput"
-								class="cart-qty-input"
-								placeholder="Enter coupon code"
-								maxlength="50"
-							/>
+							<input type="text" id="cartCouponInput" class="cart-qty-input" placeholder="Enter coupon code" maxlength="50" />
 							<button class="add-btn" onclick="applyCoupon()">Apply</button>
 							<button class="filter-btn" onclick="removeCoupon()">Remove</button>
 						</div>
-
 						<div class="cart-inline-msg" id="cartInlineMsg"></div>
-
-						<div class="cart-note">
-							You can update quantity, remove items, and apply or remove a coupon directly from this cart.
+						<div class="cart-note">You can update quantity, remove items, apply or remove a coupon, and place your order directly from this cart.</div>
+						<div class="checkout-address-block">
+							<select id="checkoutAddressSelect" class="checkout-input" onchange="handleCheckoutAddressChange(this.value)">
+								<option value="">Select delivery address</option>
+							</select>
+							<button class="checkout-add-address-btn" type="button" onclick="openDrawerToTab('addresses', true)">+ Add Address</button>
+							<textarea id="checkoutCustomerNotes" class="checkout-textarea" placeholder="Customer notes (optional)"></textarea>
+							<button class="add-btn" id="checkoutBtn" onclick="placeMyOrder()" style="width:100%;padding:12px 16px">✅ Place Order & Pay</button>
 						</div>
 					</div>
 				</div>
 			</div>
 		</div>
 	</div>
-	<!-- ─────────────────────────────────────────
-	     Page content
-	     ───────────────────────────────────────── -->
+
+	<!-- Page content -->
 	<div class="hero">
 		<div class="hero-label">Our Catalogue</div>
 		<h1>Discover our <em>finest</em><br />products</h1>
@@ -302,12 +320,10 @@
 	</div>
 
 	<div class="controls">
-		<input class="search-box" type="text" placeholder="🔍 Search products..." oninput="onSearch()"
-			id="searchInput" />
+		<input class="search-box" type="text" placeholder="🔍 Search products..." oninput="onSearch()" id="searchInput" />
 
-		<div id="filterControls" style="display:flex;gap:8px;flex-wrap:wrap">
-			<button class="filter-btn active" onclick="setFilter('all', '', this)">All</button>
-		</div>
+		<!-- FIX: Category filter — JS renders a searchable dropdown here via renderCategoryDropdown() -->
+		<div id="filterControls" style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start"></div>
 
 		<select class="page-size-select" id="pageSizeSelect" onchange="onPageSizeChange()">
 			<option value="10">10 / page</option>
@@ -316,14 +332,7 @@
 		</select>
 	</div>
 
-	<!--
-	     ── Category banner ──────────────────────────────────────────────────
-	     Shown when a category filter is active.
-	     Populated by loadCategoryBanner() via GET /api/categories/{idOrSlug}
-	     (returns CategoryResponseDto: id, name, slug, imageUrl, isActive, sortOrder, parentId)
-	     ─────────────────────────────────────────────────────────────────── -->
 	<div id="categoryBanner"></div>
-
 	<div class="grid" id="productGrid"></div>
 
 	<div class="pagination-wrapper" id="paginationWrapper" style="display:none">
@@ -333,24 +342,52 @@
 
 	<div class="toast" id="toast"></div>
 
-	<script>
-		// Close PDM only when clicking the dark overlay backdrop (not the modal itself)
-		function handlePdmOverlayClick(e) {
-			if (e.target === document.getElementById("pdmOverlay")) {
-				closePdmModal();
-			}
-		}
+	<!-- My Orders Modal -->
+	<div id="myOrdersOverlay"
+		style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.38);z-index:500;padding:24px;overflow:auto"
+		onclick="handleMyOrdersOverlayClick(event)">
+		<div style="width:min(1100px,100%);margin:0 auto;background:var(--surface);border:1px solid var(--border);border-radius:24px;overflow:hidden;box-shadow:0 30px 80px rgba(0,0,0,0.18)">
+			<div style="padding:20px 24px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px">
+				<div>
+					<div style="font-family:'DM Serif Display',serif;font-size:24px">My Orders</div>
+					<div id="myOrdersCount" style="font-size:12px;color:var(--muted);margin-top:4px">Loading orders...</div>
+				</div>
+				<div style="display:flex;align-items:center;gap:8px">
+					<button class="filter-btn" onclick="exportMyOrdersCSV()">⬇ Export</button>
+					<button class="filter-btn" onclick="closeMyOrdersModal()">Close</button>
+				</div>
+			</div>
+			<div style="padding:14px 24px;border-bottom:1px solid var(--border);background:var(--bg);display:flex;gap:10px;flex-wrap:wrap">
+				<input id="myOrderSearch" type="text" placeholder="🔍 Search by order number" oninput="filterMyOrders()" style="flex:1;min-width:220px;padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);outline:none" />
+				<select id="myOrderStatusFilter" onchange="filterMyOrders()" style="padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);outline:none">
+					<option value="">All Statuses</option>
+					<option value="PENDING">Pending</option>
+					<option value="CONFIRMED">Confirmed</option>
+					<option value="PROCESSING">Processing</option>
+					<option value="DISPATCHED">Dispatched</option>
+					<option value="OUT_FOR_DELIVERY">Out For Delivery</option>
+					<option value="DELIVERED">Delivered</option>
+					<option value="CANCELLED">Cancelled</option>
+				</select>
+				<input id="myOrderFromDate" type="datetime-local" onchange="filterMyOrders()" style="padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);outline:none" />
+				<input id="myOrderToDate" type="datetime-local" onchange="filterMyOrders()" style="padding:11px 14px;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-family:'DM Sans',sans-serif;font-size:14px;color:var(--text);outline:none" />
+				<button class="filter-btn" onclick="clearMyOrderFilters()">Clear</button>
+			</div>
+			<div style="padding:20px 24px">
+				<div id="myOrdersList"><div class="address-card">Loading orders...</div></div>
+			</div>
+		</div>
+	</div>
 
-		// Close on Escape key
+	<script>
+		function handlePdmOverlayClick(e) { if (e.target === document.getElementById("pdmOverlay")) closePdmModal(); }
+		function handleEditAddrOverlayClick(e) { if (e.target === document.getElementById("editAddrOverlay")) closeEditAddrModal(); }
 		document.addEventListener("keydown", (e) => {
-			if (e.key === "Escape") {
-				closePdmModal();
-				closeDrawer();
-			}
+			if (e.key === "Escape") { closePdmModal(); closeDrawer(); closeCartModal(); closeMyOrdersModal(); closeEditAddrModal(); }
 		});
 	</script>
 
+	<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 	<script src="/js/products.js" defer></script>
 </body>
-
 </html>

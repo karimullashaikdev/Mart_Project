@@ -97,9 +97,11 @@ public class Order {
 
 	// 🔁 Audit Fields
 	@Column(name = "created_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID createdBy;
 
 	@Column(name = "updated_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID updatedBy;
 
 	@Column(name = "created_at")
@@ -116,6 +118,7 @@ public class Order {
 	private LocalDateTime deletedAt;
 
 	@Column(name = "deleted_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID deletedBy;
 
 	// ✅ Lifecycle Hooks

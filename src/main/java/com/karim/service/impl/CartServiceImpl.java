@@ -50,15 +50,21 @@ public class CartServiceImpl implements CartService {
 
 	@Override
 	public CartResponse getOrCreateCart(UUID userId, UUID actorId) {
-		return cartRepository.findActiveCartByUserId(userId).map(this::toCartResponse).orElseGet(() -> {
-			User user = userRepository.findById(userId)
-					.orElseThrow(() -> new RuntimeException("User not found: " + userId));
+		return cartRepository.findActiveCartByUserId(userId)
+				.map(this::toCartResponse)
+				.orElseGet(() -> {
+					User user = userRepository.findById(userId)
+							.orElseThrow(() -> new RuntimeException("User not found: " + userId));
 
-			Cart cart = Cart.builder().user(user).createdBy(actorId).updatedBy(actorId).build();
+					Cart cart = Cart.builder()
+							.user(user)
+							.createdBy(actorId)
+							.updatedBy(actorId)
+							.build();
 
-			Cart saved = cartRepository.save(cart);
-			return toCartResponse(saved);
-		});
+					Cart saved = cartRepository.save(cart);
+					return toCartResponse(saved);
+				});
 	}
 
 	@Override
@@ -76,28 +82,51 @@ public class CartServiceImpl implements CartService {
 				.filter(p -> !Boolean.TRUE.equals(p.getIsDeleted()) && Boolean.TRUE.equals(p.getIsActive()))
 				.orElseThrow(() -> new RuntimeException("Product not found or inactive: " + request.getProductId()));
 
-		Stock stock = stockRepository.findByProductId(product.getId())
-				.orElseThrow(() -> new RuntimeException("Stock not found for product: " + product.getId()));
+		Stock stock = findActiveStockOrThrow(product.getId());
+		int availableQty = getAvailableQty(stock);
 
-		Integer availableQty = stock.getQuantityAvailable() != null ? stock.getQuantityAvailable() : 0;
 		if (availableQty <= 0) {
 			throw new ProductOutOfStockException(product.getId());
 		}
 
-		Optional<CartItem> existingItem = cartItemRepository.findActiveItemByCartAndProduct(cart.getId(),
-				product.getId());
+		Optional<CartItem> existingItem = cartItemRepository.findByCartIdAndProductId(
+				cart.getId(),
+				product.getId()
+		);
 
 		if (existingItem.isPresent()) {
 			CartItem item = existingItem.get();
-			int newQty = item.getQuantity() + request.getQuantity();
 
-			if (newQty > availableQty) {
-				throw new ProductOutOfStockException(product.getId(), newQty, availableQty);
+			// revive soft-deleted row instead of inserting duplicate row
+			if (Boolean.TRUE.equals(item.getIsDeleted())) {
+
+				if (request.getQuantity() > availableQty) {
+					throw new ProductOutOfStockException(product.getId(), request.getQuantity(), availableQty);
+				}
+
+				item.setIsDeleted(false);
+				item.setDeletedAt(null);
+				item.setDeletedBy(null);
+				item.setQuantity(request.getQuantity());
+				item.setUnitPrice(BigDecimal.valueOf(product.getSellingPrice()));
+				item.setUpdatedBy(actorId);
+
+				cartItemRepository.save(item);
+
+			} else {
+				int newQty = item.getQuantity() + request.getQuantity();
+
+				if (newQty > availableQty) {
+					throw new ProductOutOfStockException(product.getId(), newQty, availableQty);
+				}
+
+				item.setQuantity(newQty);
+				item.setUnitPrice(BigDecimal.valueOf(product.getSellingPrice()));
+				item.setUpdatedBy(actorId);
+
+				cartItemRepository.save(item);
 			}
 
-			item.setQuantity(newQty);
-			item.setUpdatedBy(actorId);
-			cartItemRepository.save(item);
 		} else {
 			long currentCount = cartItemRepository.countActiveItemsByCart(cart.getId());
 			if (currentCount >= MAX_CART_ITEMS) {
@@ -108,8 +137,13 @@ public class CartServiceImpl implements CartService {
 				throw new ProductOutOfStockException(product.getId(), request.getQuantity(), availableQty);
 			}
 
-			CartItem newItem = CartItem.builder().cart(cart).product(product).quantity(request.getQuantity())
-					.unitPrice(BigDecimal.valueOf(product.getSellingPrice())).createdBy(actorId).updatedBy(actorId)
+			CartItem newItem = CartItem.builder()
+					.cart(cart)
+					.product(product)
+					.quantity(request.getQuantity())
+					.unitPrice(BigDecimal.valueOf(product.getSellingPrice()))
+					.createdBy(actorId)
+					.updatedBy(actorId)
 					.build();
 
 			cartItemRepository.save(newItem);
@@ -127,10 +161,9 @@ public class CartServiceImpl implements CartService {
 				.filter(i -> i.getCart().getId().equals(cart.getId()) && !Boolean.TRUE.equals(i.getIsDeleted()))
 				.orElseThrow(() -> new CartItemNotFoundException(itemId));
 
-		Stock stock = stockRepository.findByProductId(item.getProduct().getId())
-				.orElseThrow(() -> new RuntimeException("Stock not found for product: " + item.getProduct().getId()));
+		Stock stock = findActiveStockOrThrow(item.getProduct().getId());
+		int availableQty = getAvailableQty(stock);
 
-		Integer availableQty = stock.getQuantityAvailable() != null ? stock.getQuantityAvailable() : 0;
 		if (request.getQuantity() > availableQty) {
 			throw new ProductOutOfStockException(item.getProduct().getId(), request.getQuantity(), availableQty);
 		}
@@ -198,7 +231,8 @@ public class CartServiceImpl implements CartService {
 	public CartSummaryResponse getCartSummary(UUID userId) {
 		Cart cart = findActiveCartOrThrow(userId);
 
-		List<CartItem> activeItems = cart.getItems().stream().filter(i -> !Boolean.TRUE.equals(i.getIsDeleted()))
+		List<CartItem> activeItems = cart.getItems().stream()
+				.filter(i -> !Boolean.TRUE.equals(i.getIsDeleted()))
 				.collect(Collectors.toList());
 
 		if (activeItems.isEmpty()) {
@@ -223,7 +257,8 @@ public class CartServiceImpl implements CartService {
 	}
 
 	private Cart findActiveCartOrThrow(UUID userId) {
-		return cartRepository.findActiveCartByUserId(userId).orElseThrow(() -> new CartNotFoundException(userId));
+		return cartRepository.findActiveCartByUserId(userId)
+				.orElseThrow(() -> new CartNotFoundException(userId));
 	}
 
 	private Cart findOrCreateRawCart(UUID userId, UUID actorId) {
@@ -231,14 +266,32 @@ public class CartServiceImpl implements CartService {
 			User user = userRepository.findById(userId)
 					.orElseThrow(() -> new RuntimeException("User not found: " + userId));
 
-			Cart cart = Cart.builder().user(user).createdBy(actorId).updatedBy(actorId).build();
+			Cart cart = Cart.builder()
+					.user(user)
+					.createdBy(actorId)
+					.updatedBy(actorId)
+					.build();
 
 			return cartRepository.save(cart);
 		});
 	}
 
+	private Stock findActiveStockOrThrow(UUID productId) {
+		return stockRepository.findActiveByProductId(productId)
+				.orElseThrow(() -> new RuntimeException("Active stock not found for product: " + productId));
+	}
+
+	private int getAvailableQty(Stock stock) {
+		return stock.getQuantityAvailable() != null ? stock.getQuantityAvailable() : 0;
+	}
+
+	private int getReservedQty(Stock stock) {
+		return stock.getQuantityReserved() != null ? stock.getQuantityReserved() : 0;
+	}
+
 	private CartResponse toCartResponse(Cart cart) {
-		List<CartItem> activeItems = cart.getItems().stream().filter(i -> !Boolean.TRUE.equals(i.getIsDeleted()))
+		List<CartItem> activeItems = cart.getItems().stream()
+				.filter(i -> !Boolean.TRUE.equals(i.getIsDeleted()))
 				.collect(Collectors.toList());
 
 		CartResponse response = new CartResponse();
@@ -246,7 +299,11 @@ public class CartServiceImpl implements CartService {
 		response.setUserId(cart.getUser().getId());
 		response.setCouponCode(cart.getCouponCode());
 		response.setSubtotal(cart.getSubtotal());
-		response.setItemCount(activeItems.size());
+		response.setItemCount(
+				activeItems.stream()
+						.mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0)
+						.sum()
+		);
 		response.setCreatedAt(cart.getCreatedAt());
 		response.setUpdatedAt(cart.getUpdatedAt());
 		response.setItems(activeItems.stream().map(this::toCartItemResponse).collect(Collectors.toList()));
@@ -256,13 +313,20 @@ public class CartServiceImpl implements CartService {
 
 	private CartItemResponse toCartItemResponse(CartItem item) {
 		Product product = item.getProduct();
+		Stock stock = findActiveStockOrThrow(product.getId());
+
+		int availableQty = getAvailableQty(stock);
+		int reservedQty = getReservedQty(stock);
 
 		CartItemResponse response = new CartItemResponse();
 		response.setId(item.getId());
 		response.setProductId(product.getId());
 		response.setProductName(product.getName());
 		response.setProductImageUrl(
-				product.getImages() != null && !product.getImages().isEmpty() ? product.getImages().get(0) : null);
+				product.getImages() != null && !product.getImages().isEmpty()
+						? product.getImages().get(0)
+						: null
+		);
 		response.setUnit(product.getUnit() != null ? product.getUnit().name() : null);
 		response.setUnitValue(product.getUnitValue());
 		response.setQuantity(item.getQuantity());
@@ -270,12 +334,10 @@ public class CartServiceImpl implements CartService {
 		response.setLineTotal(item.getLineTotal());
 		response.setAddedAt(item.getCreatedAt());
 
-		boolean inStock = stockRepository.findByProductId(product.getId()).map(stock -> {
-			Integer qty = stock.getQuantityAvailable();
-			return qty != null && qty > 0;
-		}).orElse(false);
+		response.setAvailableQuantity(availableQty);
+		response.setQuantityReserved(reservedQty);
+		response.setInStock(availableQty > 0);
 
-		response.setInStock(inStock);
 		return response;
 	}
 }

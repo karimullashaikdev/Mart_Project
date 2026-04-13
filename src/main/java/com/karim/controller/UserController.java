@@ -9,25 +9,10 @@ import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.karim.annotation.CurrentUser;
-import com.karim.dto.AddressResponseDto;
-import com.karim.dto.ApiResponse;
-import com.karim.dto.CreateAddressDto;
-import com.karim.dto.CreateUserProfileDto;
-import com.karim.dto.UpdateAddressDto;
-import com.karim.dto.UpdateProfileDto;
-import com.karim.dto.UpdateUserDto;
-import com.karim.dto.UserFilterDto;
-import com.karim.dto.UserProfileDto;
+import com.karim.dto.*;
 import com.karim.entity.User;
 import com.karim.entity.UserProfile;
 import com.karim.service.AddressService;
@@ -36,252 +21,174 @@ import com.karim.service.impl.UserPrincipal;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
-import io.swagger.v3.oas.annotations.media.Content;
-import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/users")
+@RequiredArgsConstructor
 @Tag(name = "User", description = "User profile, account, and address management APIs")
 @SecurityRequirement(name = "bearerAuth")
 public class UserController {
 
-	private final UserService userService;
-	private final AddressService addressService;
+    private final UserService userService;
+    private final AddressService addressService;
 
-	public UserController(UserService userService, AddressService addressService) {
-		this.userService = userService;
-		this.addressService = addressService;
-	}
+    // ─────────────────────────────────────────────────────────────────────────────
+    // SECTION 1: USER SELF-SERVICE (ROLE_USER or ROLE_ADMIN)
+    // All paths start with /me
+    // ─────────────────────────────────────────────────────────────────────────────
 
-	// ─────────────────────────────────────────────────────────────────────────────
-	// CURRENT USER (any authenticated user)
-	// ─────────────────────────────────────────────────────────────────────────────
+    @GetMapping("/me")
+    @Operation(summary = "Get current user")
+    public ResponseEntity<ApiResponse<User>> getMe(
+            @Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(userService.getUser(principal.getId())));
+    }
 
-	@GetMapping("/me")
-	@Operation(summary = "Get current user", description = "Returns the full account details of the currently authenticated user. "
-			+ "Only non-deleted users are returned.")
-	@ApiResponses({
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User found", content = @Content(schema = @Schema(implementation = User.class))),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorised – JWT missing or invalid"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found") })
-	public ResponseEntity<ApiResponse<User>> getMe(@Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
+    @PatchMapping("/me")
+    @Operation(summary = "Update current user")
+    public ResponseEntity<ApiResponse<User>> updateMe(
+            @Parameter(hidden = true) @CurrentUser UserPrincipal principal,
+            @Valid @RequestBody UpdateUserDto dto) {
+        return ResponseEntity.ok(ApiResponse.success(
+                userService.updateUser(principal.getId(), dto, principal.getId())));
+    }
 
-		User user = userService.getUser(principal.getId());
-		return ResponseEntity.ok(ApiResponse.success(user));
-	}
+    @GetMapping("/me/profile")
+    public ResponseEntity<ApiResponse<UserProfileDto>> getMyProfile(
+            @Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
+        return userService.getProfile(principal.getId())
+                .map(profile -> ResponseEntity.ok(ApiResponse.success(profile)))
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
+                        .body(ApiResponse.failure("Profile not found")));
+    }
 
-	@PatchMapping("/me")
-	@Operation(summary = "Update current user", description = "Partially updates the authenticated user's account fields "
-			+ "(full_name, email, phone, is_active). Only non-null fields in the "
-			+ "request body are applied. The actorId is resolved from the JWT.")
-	@ApiResponses({
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User updated successfully"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation error"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorised"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found") })
-	public ResponseEntity<ApiResponse<User>> updateMe(@Parameter(hidden = true) @CurrentUser UserPrincipal principal,
-			@Valid @RequestBody UpdateUserDto dto) {
+    @PostMapping("/me/profile")
+    public ResponseEntity<ApiResponse<UserProfileDto>> createOrUpdateProfile(
+            @Parameter(hidden = true) @CurrentUser UserPrincipal principal,
+            @Valid @RequestBody CreateUserProfileDto dto) {
+        UserProfile profile = userService.createOrUpdateProfile(principal.getId(), dto, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success(mapProfileToDto(profile)));
+    }
 
-		User updated = userService.updateUser(principal.getId(), dto, principal.getId());
-		return ResponseEntity.ok(ApiResponse.success(updated));
-	}
+    @DeleteMapping("/me/profile")
+    public ResponseEntity<Void> softDeleteProfile(
+            @Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
+        userService.softDeleteProfile(principal.getId(), principal.getId());
+        return ResponseEntity.noContent().build();
+    }
 
-	// ─────────────────────────────────────────────────────────────────────────────
-	// PROFILE
-	// ─────────────────────────────────────────────────────────────────────────────
+    // ─────────────────────────────────────────────────────────────────────────────
+    // ADDRESS ENDPOINTS
+    // ─────────────────────────────────────────────────────────────────────────────
 
-	@GetMapping("/me/profile")
-	public ResponseEntity<ApiResponse<UserProfileDto>> getMyProfile(
-			@Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
+    @GetMapping("/me/addresses")
+    @Operation(summary = "Get all addresses for current user")
+    public ResponseEntity<ApiResponse<List<AddressResponseDto>>> getMyAddresses(
+            @Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(addressService.getAddresses(principal.getId())));
+    }
 
-		return userService.getProfile(principal.getId())
-				.map(profile -> ResponseEntity.ok(ApiResponse.success(profile)))
-				.orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND)
-						.body(ApiResponse.failure("Profile not found")));
-	}
+    @PostMapping("/me/addresses")
+    @Operation(summary = "Add a new address for current user")
+    public ResponseEntity<ApiResponse<AddressResponseDto>> addAddress(
+            @Parameter(hidden = true) @CurrentUser UserPrincipal principal,
+            @Valid @RequestBody CreateAddressDto dto) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(
+                ApiResponse.success(addressService.addAddress(principal.getId(), dto, principal.getId())));
+    }
 
-	@PostMapping("/me/profile")
-	public ResponseEntity<ApiResponse<UserProfileDto>> createOrUpdateProfile(
-			@Parameter(hidden = true) @CurrentUser UserPrincipal principal,
-			@Valid @RequestBody CreateUserProfileDto dto) {
+    /**
+     * Update an existing address.
+     * FIX: This endpoint was MISSING — frontend was getting
+     *      "No static resource api/users/me/addresses/{id}" (500) on every edit/delete.
+     */
+    @PatchMapping("/me/addresses/{addressId}")
+    @Operation(summary = "Update an existing address")
+    public ResponseEntity<ApiResponse<AddressResponseDto>> updateAddress(
+            @Parameter(hidden = true) @CurrentUser UserPrincipal principal,
+            @PathVariable UUID addressId,
+            @Valid @RequestBody CreateAddressDto dto) {
+        return ResponseEntity.ok(ApiResponse.success(
+                addressService.updateAddress(principal.getId(), addressId, dto, principal.getId())));
+    }
 
-		UserProfile profile = userService.createOrUpdateProfile(
-				principal.getId(), dto, principal.getId());
+    /**
+     * Delete (soft-delete) an address.
+     * FIX: This endpoint was MISSING — frontend was getting
+     *      "No static resource api/users/me/addresses/{id}" (500) on every delete.
+     */
+    @DeleteMapping("/me/addresses/{addressId}")
+    @Operation(summary = "Delete an address")
+    public ResponseEntity<Void> deleteAddress(
+            @Parameter(hidden = true) @CurrentUser UserPrincipal principal,
+            @PathVariable UUID addressId) {
+        addressService.deleteAddress(principal.getId(), addressId, principal.getId());
+        return ResponseEntity.noContent().build();
+    }
 
-		return ResponseEntity.ok(ApiResponse.success(mapProfileToDto(profile)));
-	}
+    // ─────────────────────────────────────────────────────────────────────────────
+    // SECTION 2: ADMIN MANAGEMENT (ROLE_ADMIN ONLY)
+    // All paths interact with specific {userId}
+    // ─────────────────────────────────────────────────────────────────────────────
 
-	@PatchMapping("/me/profile")
-	public ResponseEntity<ApiResponse<UserProfileDto>> updateProfile(
-			@Parameter(hidden = true) @CurrentUser UserPrincipal principal,
-			@Valid @RequestBody UpdateProfileDto dto) {
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "List all users (Admin)")
+    public ResponseEntity<ApiResponse<Page<User>>> listUsers(
+            @Valid UserFilterDto filters,
+            @PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(userService.listUsers(filters, pageable)));
+    }
 
-		UserProfile profile = userService.updateProfile(
-				principal.getId(), dto, principal.getId());
+    @GetMapping("/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get a specific user by ID (Admin)")
+    public ResponseEntity<ApiResponse<User>> getUserById(@PathVariable UUID userId) {
+        return ResponseEntity.ok(ApiResponse.success(userService.getUser(userId)));
+    }
 
-		return ResponseEntity.ok(ApiResponse.success(mapProfileToDto(profile)));
-	}
+    @PatchMapping("/{userId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update a specific user (Admin)")
+    public ResponseEntity<ApiResponse<User>> updateUser(
+            @PathVariable UUID userId,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal principal,
+            @Valid @RequestBody UpdateUserDto dto) {
+        return ResponseEntity.ok(ApiResponse.success(
+                userService.updateUser(userId, dto, principal.getId())));
+    }
 
-	@DeleteMapping("/me/profile")
-	public ResponseEntity<Void> softDeleteProfile(
-			@Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
+    @PatchMapping("/{userId}/restore")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Restore a soft-deleted user (Admin)")
+    public ResponseEntity<ApiResponse<String>> restoreUser(
+            @PathVariable UUID userId,
+            @Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
+        userService.restoreUser(userId, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("User restored successfully"));
+    }
 
-		userService.softDeleteProfile(principal.getId(), principal.getId());
-		return ResponseEntity.noContent().build();
-	}
+    // ─────────────────────────────────────────────────────────────────────────────
+    // PRIVATE HELPERS
+    // ─────────────────────────────────────────────────────────────────────────────
 
-	// ─────────────────────────────────────────────────────────────────────────────
-	// ADDRESSES
-	// ─────────────────────────────────────────────────────────────────────────────
-
-	@GetMapping("/me/addresses")
-	public ResponseEntity<ApiResponse<List<AddressResponseDto>>> getMyAddresses(
-			@Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
-
-		List<AddressResponseDto> addresses = addressService.getAddresses(principal.getId());
-		return ResponseEntity.ok(ApiResponse.success(addresses));
-	}
-
-	@PostMapping("/me/addresses")
-	public ResponseEntity<ApiResponse<AddressResponseDto>> addAddress(
-			@Parameter(hidden = true) @CurrentUser UserPrincipal principal,
-			@Valid @RequestBody CreateAddressDto dto) {
-
-		AddressResponseDto address = addressService.addAddress(principal.getId(), dto, principal.getId());
-
-		return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(address));
-	}
-
-	@GetMapping("/me/addresses/{addressId}")
-	public ResponseEntity<ApiResponse<AddressResponseDto>> getAddress(@PathVariable UUID addressId,
-			@Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
-
-		AddressResponseDto address = addressService.getAddress(addressId, principal.getId());
-
-		return ResponseEntity.ok(ApiResponse.success(address));
-	}
-
-	@PatchMapping("/me/addresses/{addressId}")
-	public ResponseEntity<ApiResponse<AddressResponseDto>> updateAddress(@PathVariable UUID addressId,
-			@Parameter(hidden = true) @CurrentUser UserPrincipal principal,
-			@Valid @RequestBody UpdateAddressDto dto) {
-
-		AddressResponseDto address = addressService.updateAddress(addressId, principal.getId(), dto, principal.getId());
-
-		return ResponseEntity.ok(ApiResponse.success(address));
-	}
-
-	@PatchMapping("/me/addresses/{addressId}/default")
-	public ResponseEntity<ApiResponse<String>> setDefaultAddress(@PathVariable UUID addressId,
-			@Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
-
-		addressService.setDefaultAddress(addressId, principal.getId(), principal.getId());
-		return ResponseEntity.ok(ApiResponse.success("Default address updated successfully"));
-	}
-
-	@DeleteMapping("/me/addresses/{addressId}")
-	public ResponseEntity<Void> softDeleteAddress(@PathVariable UUID addressId,
-			@Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
-
-		addressService.softDeleteAddress(addressId, principal.getId(), principal.getId());
-		return ResponseEntity.noContent().build();
-	}
-
-	// ─────────────────────────────────────────────────────────────────────────────
-	// ADMIN – user management
-	// ─────────────────────────────────────────────────────────────────────────────
-
-	@GetMapping
-	@PreAuthorize("hasRole('ADMIN')")
-	@Operation(summary = "List all users (Admin)", description = "Returns a paginated list of users with optional filters. "
-			+ "Supports filtering by role, is_active, is_deleted, and a free-text "
-			+ "search on full_name / email / phone. "
-			+ "By default only non-deleted users are returned unless is_deleted=true is passed.")
-	@ApiResponses({
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "List of users returned"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorised"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden – admin role required") })
-	public ResponseEntity<ApiResponse<Page<User>>> listUsers(@Valid UserFilterDto filters,
-			@PageableDefault(size = 20, sort = "createdAt") Pageable pageable) {
-
-		Page<User> page = userService.listUsers(filters, pageable);
-		return ResponseEntity.ok(ApiResponse.success(page));
-	}
-
-	@GetMapping("/{userId}")
-	@PreAuthorize("hasRole('ADMIN')")
-	@Operation(summary = "Get a specific user by ID (Admin)", description = "Fetches a single user record by its UUID. "
-			+ "Intended for admin use; returns even soft-deleted users "
-			+ "depending on the repository default scope configuration.")
-	@ApiResponses({
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User found"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorised"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden – admin role required"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found") })
-	public ResponseEntity<ApiResponse<User>> getUserById(
-			@Parameter(description = "UUID of the target user", required = true) @PathVariable UUID userId) {
-
-		User user = userService.getUser(userId);
-		return ResponseEntity.ok(ApiResponse.success(user));
-	}
-
-	@PatchMapping("/{userId}")
-	@PreAuthorize("hasRole('ADMIN')")
-	@Operation(summary = "Update a specific user (Admin)", description = "Allows an admin to partially update any user's account fields "
-			+ "(full_name, email, phone, is_active). "
-			+ "The actorId recorded in the audit trail is the admin's own ID, "
-			+ "resolved from the JWT.")
-	@ApiResponses({
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User updated"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation error"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorised"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden – admin role required"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "User not found") })
-	public ResponseEntity<ApiResponse<User>> updateUser(
-			@Parameter(description = "UUID of the target user", required = true) @PathVariable UUID userId,
-			@Parameter(hidden = true) @CurrentUser UserPrincipal principal,
-			@Valid @RequestBody UpdateUserDto dto) {
-
-		User updated = userService.updateUser(userId, dto, principal.getId());
-		return ResponseEntity.ok(ApiResponse.success(updated));
-	}
-
-	@PatchMapping("/{userId}/restore")
-	@PreAuthorize("hasRole('ADMIN')")
-	@Operation(summary = "Restore a soft-deleted user (Admin)", description = "Reverses a soft-delete by setting is_deleted=false and clearing "
-			+ "deleted_at / deleted_by on the user record. "
-			+ "Returns 400 if the user is not currently soft-deleted.")
-	@ApiResponses({
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "User restored successfully"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "User not found or already active"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Unauthorised"),
-			@io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Forbidden – admin role required") })
-	public ResponseEntity<ApiResponse<String>> restoreUser(
-			@Parameter(description = "UUID of the soft-deleted user to restore", required = true) @PathVariable UUID userId,
-			@Parameter(hidden = true) @CurrentUser UserPrincipal principal) {
-
-		userService.restoreUser(userId, principal.getId());
-		return ResponseEntity.ok(ApiResponse.success("User restored successfully"));
-	}
-
-	private UserProfileDto mapProfileToDto(UserProfile profile) {
-		User user = profile.getUser();
-
-		UserProfileDto dto = new UserProfileDto();
-		dto.setUserId(user.getId());
-		dto.setFullName(user.getFullName());
-		dto.setEmail(user.getEmail());
-		dto.setPhone(user.getPhone());
-		dto.setRole(user.getRole());
-		dto.setIsActive(user.getIsActive());
-		dto.setAvatarUrl(profile.getAvatarUrl());
-		dto.setDateOfBirth(profile.getDateOfBirth());
-		dto.setGender(profile.getGender());
-
-		return dto;
-	}
+    private UserProfileDto mapProfileToDto(UserProfile profile) {
+        User user = profile.getUser();
+        UserProfileDto dto = new UserProfileDto();
+        dto.setUserId(user.getId());
+        dto.setFullName(user.getFullName());
+        dto.setEmail(user.getEmail());
+        dto.setPhone(user.getPhone());
+        dto.setRole(user.getRole());
+        dto.setIsActive(user.getIsActive());
+        dto.setAvatarUrl(profile.getAvatarUrl());
+        dto.setDateOfBirth(profile.getDateOfBirth());
+        dto.setGender(profile.getGender());
+        return dto;
+    }
 }

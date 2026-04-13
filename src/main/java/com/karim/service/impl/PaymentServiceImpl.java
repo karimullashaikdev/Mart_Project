@@ -273,7 +273,6 @@ public class PaymentServiceImpl implements PaymentService {
 			throw new RuntimeException("Gateway order id missing for this payment");
 		}
 
-		// Never trust client blindly. Compare with server-stored order id first.
 		if (!payment.getGatewayOrderId().equals(razorpayOrderId)) {
 			throw new RuntimeException("Razorpay order id mismatch");
 		}
@@ -304,18 +303,35 @@ public class PaymentServiceImpl implements PaymentService {
 
 			Payment updated = paymentRepository.save(payment);
 
-			return PaymentResponse.builder().paymentId(updated.getId()).paymentReference(updated.getPaymentReference())
-					.status(updated.getStatus().name()).message("Razorpay payment verified successfully")
-					.amount(updated.getAmount()).method(updated.getMethod().name())
-					.gatewayName(updated.getGatewayName()).gatewayOrderId(updated.getGatewayOrderId())
-					.gatewayPaymentId(updated.getGatewayPaymentId()).gatewaySignature(updated.getGatewaySignature())
-					.gatewayTxnId(updated.getGatewayTxnId()).build();
+			Order order = orderRepository.findById(updated.getOrderId())
+					.orElseThrow(() -> new RuntimeException("Order not found for this payment"));
+
+			// move order from PENDING to CONFIRMED only after successful payment
+			if (order.getStatus() == com.karim.enums.OrderStatus.PENDING) {
+				order.setStatus(com.karim.enums.OrderStatus.CONFIRMED);
+				order.setConfirmedAt(LocalDateTime.now());
+				order.setUpdatedBy(actorId);
+				orderRepository.save(order);
+			}
+
+			return PaymentResponse.builder()
+					.paymentId(updated.getId())
+					.paymentReference(updated.getPaymentReference())
+					.status(updated.getStatus().name())
+					.message("Razorpay payment verified successfully")
+					.amount(updated.getAmount())
+					.method(updated.getMethod().name())
+					.gatewayName(updated.getGatewayName())
+					.gatewayOrderId(updated.getGatewayOrderId())
+					.gatewayPaymentId(updated.getGatewayPaymentId())
+					.gatewaySignature(updated.getGatewaySignature())
+					.gatewayTxnId(updated.getGatewayTxnId())
+					.build();
 
 		} catch (Exception e) {
 			throw new RuntimeException("Payment verification failed: " + e.getMessage(), e);
 		}
 	}
-
 	@Transactional
 	@Override
 	public void confirmPaymentSuccess(UUID paymentId, String gatewayTxnId, String response, UUID actorId) {

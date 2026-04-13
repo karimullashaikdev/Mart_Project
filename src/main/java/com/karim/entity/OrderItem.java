@@ -3,8 +3,10 @@ package com.karim.entity;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 import com.karim.enums.OrderItemStatus;
 
@@ -33,6 +35,7 @@ public class OrderItem {
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
 	@Column(columnDefinition = "CHAR(36)")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID id;
 
 	// 🔗 Many Items → One Order
@@ -63,6 +66,7 @@ public class OrderItem {
 
 	// 🔁 Audit Fields
 	@Column(name = "created_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID createdBy;
 
 	@Column(name = "created_at")
@@ -76,6 +80,7 @@ public class OrderItem {
 	private LocalDateTime deletedAt;
 
 	@Column(name = "deleted_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID deletedBy;
 
 	// ✅ Lifecycle Hooks

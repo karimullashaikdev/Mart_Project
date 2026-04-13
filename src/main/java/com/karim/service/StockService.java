@@ -6,13 +6,14 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
+import com.karim.dto.StockResponseDto;
 import com.karim.dto.StockTransactionFilter;
 import com.karim.entity.Stock;
 import com.karim.entity.StockTransaction;
 
 public interface StockService {
 
-	Stock getStock(UUID productId);
+	StockResponseDto getStock(UUID productId);
 
 	void addStock(UUID productId, int quantity, String reason, UUID actorId);
 

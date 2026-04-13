@@ -1,14 +1,12 @@
 package com.karim.dto;
 
-import com.karim.enums.AddressLabel;
-
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 @Data
 public class CreateAddressDto {
 
-	private AddressLabel label;
+	private String label;
 
 	@NotBlank
 	private String line1;
@@ -23,6 +21,10 @@ public class CreateAddressDto {
 
 	@NotBlank
 	private String pincode;
+
+	private String phone;
+
+	private String landmark;
 
 	private Double latitude;
 

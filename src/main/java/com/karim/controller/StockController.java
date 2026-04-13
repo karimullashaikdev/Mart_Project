@@ -22,6 +22,7 @@ import com.karim.dto.ConfirmStockSaleRequestDto;
 import com.karim.dto.ReleaseReservedStockRequestDto;
 import com.karim.dto.ReserveStockRequestDto;
 import com.karim.dto.RestockFromReturnRequestDto;
+import com.karim.dto.StockResponseDto;
 import com.karim.dto.StockTransactionFilter;
 import com.karim.entity.Stock;
 import com.karim.entity.StockTransaction;
@@ -44,8 +45,8 @@ public class StockController {
 	 * Get stock details for a product Example: GET /api/user/stocks/{productId}
 	 */
 	@GetMapping("/user/stocks/{productId}")
-	public ResponseEntity<Stock> getStock(@PathVariable UUID productId) {
-		Stock stock = stockService.getStock(productId);
+	public ResponseEntity<StockResponseDto> getStock(@PathVariable UUID productId) {
+		StockResponseDto stock = stockService.getStock(productId);
 		return ResponseEntity.ok(stock);
 	}
 

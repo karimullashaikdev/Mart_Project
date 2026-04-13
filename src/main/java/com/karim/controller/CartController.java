@@ -5,15 +5,7 @@ import java.util.UUID;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.karim.annotation.CurrentUser;
 import com.karim.dto.AddToCartRequest;
@@ -32,66 +24,101 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CartController {
 
-	private final CartService cartService;
+    private final CartService cartService;
 
-	@GetMapping
-	@PreAuthorize("hasRole('USER')")
-	public ResponseEntity<ApiResponse<CartResponse>> getOrCreateCart(@CurrentUser UserPrincipal principal) {
+    // ==========================================
+    // CUSTOMER ENDPOINTS (ROLE_USER)
+    // ==========================================
 
-		CartResponse cart = cartService.getOrCreateCart(principal.getId(), principal.getId());
-		return ResponseEntity.ok(ApiResponse.success("Cart fetched successfully", cart));
-	}
+    @GetMapping
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ApiResponse<CartResponse>> getOrCreateCart(@CurrentUser UserPrincipal principal) {
+        CartResponse cart = cartService.getOrCreateCart(principal.getId(), principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Cart fetched successfully", cart));
+    }
 
-	@PostMapping("/items")
-	@PreAuthorize("hasRole('USER')")
-	public ResponseEntity<ApiResponse<CartResponse>> addItem(@CurrentUser UserPrincipal principal,
-			@Valid @RequestBody AddToCartRequest request) {
+    @PostMapping("/items")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ApiResponse<CartResponse>> addItem(
+            @CurrentUser UserPrincipal principal,
+            @Valid @RequestBody AddToCartRequest request) {
+        CartResponse cart = cartService.addItem(principal.getId(), request, principal.getId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Item added to cart", cart));
+    }
 
-		CartResponse cart = cartService.addItem(principal.getId(), request, principal.getId());
-		return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success("Item added to cart", cart));
-	}
+    @PatchMapping("/items/{itemId}")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ApiResponse<CartResponse>> updateItemQuantity(
+            @CurrentUser UserPrincipal principal,
+            @PathVariable UUID itemId,
+            @Valid @RequestBody UpdateCartItemRequest request) {
+        CartResponse cart = cartService.updateItemQuantity(principal.getId(), itemId, request, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Cart updated", cart));
+    }
 
-	@PatchMapping("/items/{itemId}")
-	@PreAuthorize("hasRole('USER')")
-	public ResponseEntity<ApiResponse<CartResponse>> updateItemQuantity(@CurrentUser UserPrincipal principal,
-			@PathVariable UUID itemId, @Valid @RequestBody UpdateCartItemRequest request) {
+    @DeleteMapping("/items/{itemId}")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ApiResponse<CartResponse>> removeItem(
+            @CurrentUser UserPrincipal principal,
+            @PathVariable UUID itemId) {
+        CartResponse cart = cartService.removeItem(principal.getId(), itemId, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Item removed from cart", cart));
+    }
 
-		CartResponse cart = cartService.updateItemQuantity(principal.getId(), itemId, request, principal.getId());
-		return ResponseEntity.ok(ApiResponse.success("Cart updated", cart));
-	}
+    @PostMapping("/coupon")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ApiResponse<CartResponse>> applyCoupon(
+            @CurrentUser UserPrincipal principal,
+            @Valid @RequestBody ApplyCouponRequest request) {
+        CartResponse cart = cartService.applyCoupon(principal.getId(), request.getCouponCode(), principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Coupon applied", cart));
+    }
 
-	@DeleteMapping("/items/{itemId}")
-	@PreAuthorize("hasRole('USER')")
-	public ResponseEntity<ApiResponse<CartResponse>> removeItem(@CurrentUser UserPrincipal principal,
-			@PathVariable UUID itemId) {
+    @DeleteMapping("/coupon")
+    @PreAuthorize("hasRole('USER')")
+    public ResponseEntity<ApiResponse<CartResponse>> removeCoupon(@CurrentUser UserPrincipal principal) {
+        CartResponse cart = cartService.removeCoupon(principal.getId(), principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Coupon removed", cart));
+    }
 
-		CartResponse cart = cartService.removeItem(principal.getId(), itemId, principal.getId());
-		return ResponseEntity.ok(ApiResponse.success("Item removed from cart", cart));
-	}
+    // ==========================================
+    // ADMINISTRATIVE ENDPOINTS (ROLE_ADMIN)
+    // ==========================================
 
-	@PostMapping("/coupon")
-	@PreAuthorize("hasRole('USER')")
-	public ResponseEntity<ApiResponse<CartResponse>> applyCoupon(@CurrentUser UserPrincipal principal,
-			@Valid @RequestBody ApplyCouponRequest request) {
+    /**
+     * Admin: View any user's cart.
+     * GET /api/v1/cart/admin?userId={uuid}
+     *
+     * This endpoint was MISSING — it caused the "Request method 'GET' is not supported"
+     * 405 error when the admin dashboard tried to view a user's cart.
+     *
+     * Uses getOrCreateCart so it is safe even if the user has no cart yet
+     * (returns an empty cart rather than a 404).
+     */
+    @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<CartResponse>> adminGetCart(
+            @RequestParam UUID userId,
+            @CurrentUser UserPrincipal principal) {
 
-		CartResponse cart = cartService.applyCoupon(principal.getId(), request.getCouponCode(), principal.getId());
-		return ResponseEntity.ok(ApiResponse.success("Coupon applied", cart));
-	}
+        CartResponse cart = cartService.getOrCreateCart(userId, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("Cart fetched successfully", cart));
+    }
 
-	@DeleteMapping("/coupon")
-	@PreAuthorize("hasRole('USER')")
-	public ResponseEntity<ApiResponse<CartResponse>> removeCoupon(@CurrentUser UserPrincipal principal) {
+    /**
+     * Admin: Delete any user's cart.
+     * DELETE /api/v1/cart/admin?userId={uuid}
+     *
+     * NOTE: Uses the /admin prefix to avoid clashing with
+     * the customer DELETE /api/v1/cart mapping (if one existed).
+     */
+    @DeleteMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Void>> adminDeleteCart(
+            @RequestParam UUID userId,
+            @CurrentUser UserPrincipal principal) {
 
-		CartResponse cart = cartService.removeCoupon(principal.getId(), principal.getId());
-		return ResponseEntity.ok(ApiResponse.success("Coupon removed", cart));
-	}
-
-	@DeleteMapping
-	@PreAuthorize("hasRole('ADMIN')")
-	public ResponseEntity<ApiResponse<Void>> deleteCart(@RequestParam UUID userId,
-			@CurrentUser UserPrincipal principal) {
-
-		cartService.deleteCart(userId, principal.getId());
-		return ResponseEntity.ok(ApiResponse.success("Cart deleted", null));
-	}
+        cartService.deleteCart(userId, principal.getId());
+        return ResponseEntity.ok(ApiResponse.success("User cart deleted by admin", null));
+    }
 }

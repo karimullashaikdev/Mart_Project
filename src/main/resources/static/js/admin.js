@@ -7,7 +7,78 @@
 document.addEventListener('DOMContentLoaded', () => {
 	setDateLabel();
 	loadDashboard();
+	loadAdminProfile();   // populate sidebar chip + cache for profile modal
 });
+// ════════════════════════════════════════════════════════════════════════════
+//  ADMIN PROFILE
+// ════════════════════════════════════════════════════════════════════════════
+
+// Called on DOMContentLoaded to populate the sidebar chip with real admin data
+async function loadAdminProfile() {
+	try {
+		const res = await fetch(ADMIN_API.users.me, {
+			headers: { 'Authorization': 'Bearer ' + token }
+		});
+		if (!res.ok) return;  // fail silently — sidebar just keeps "Admin" text
+		const raw  = await res.json();
+		const data = unwrapApiResponse(raw);
+
+		// Cache for the profile modal
+		window._adminProfile = data;
+
+		// Update sidebar chip
+		const nameEl   = document.getElementById('adminName');
+		const roleEl   = document.getElementById('adminRole');
+		const avatarEl = document.getElementById('adminAvatar');
+		const name     = data.fullName || data.name || 'Admin';
+
+		if (nameEl)   nameEl.textContent   = name;
+		if (roleEl)   roleEl.textContent   = data.role || 'ADMIN';
+		if (avatarEl) avatarEl.textContent = name[0].toUpperCase();
+	} catch (e) {
+		console.warn('[loadAdminProfile] Could not fetch admin profile:', e.message);
+	}
+}
+
+function openAdminProfileModal() {
+	const modal = document.getElementById('adminProfileModal');
+	if (!modal) return;
+	modal.classList.add('show');
+
+	const p = window._adminProfile || {};
+
+	const set = (id, val) => {
+		const el = document.getElementById(id);
+		if (el) el.textContent = val || '—';
+	};
+
+	const name = p.fullName || p.name || 'Admin';
+
+	// Big avatar initials
+	const bigAvatar = document.getElementById('apBigAvatar');
+	if (bigAvatar) bigAvatar.textContent = name[0].toUpperCase();
+
+	set('apName',    name);
+	set('apEmail',   p.email);
+	set('apPhone',   p.phone);
+	set('apRole',    p.role);
+	set('apActive',  p.isActive !== false ? 'Active' : 'Inactive');
+	set('apId',      p.id);
+	set('apCreated', p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN', {
+		weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+	}) : '—');
+}
+
+function closeAdminProfileModal() {
+	const modal = document.getElementById('adminProfileModal');
+	if (modal) modal.classList.remove('show');
+}
+
+function closeAdminProfileOnBg(e) {
+	if (e.target === document.getElementById('adminProfileModal')) closeAdminProfileModal();
+}
+
+
 
 function setDateLabel() {
 	const el = document.getElementById('dateLabel');
@@ -276,6 +347,16 @@ function closeModalOnBg(e) {
 	if (e.target === document.getElementById('usersModal')) closeUsersModal();
 }
 
+// BUG FIX: refreshUsers was called in HTML but never defined
+async function refreshUsers() {
+	usersFetched = false;
+	document.getElementById('allUsersTable').innerHTML =
+		`<tr><td colspan="9" style="text-align:center;padding:32px;color:var(--muted)">Refreshing users...</td></tr>`;
+	const users = await fetchUsers();
+	if (users) { allUsers = users; usersFetched = true; }
+	renderUsersTable(allUsers);
+}
+
 async function fetchUsers() {
 	try {
 		const res = await fetch(`${ADMIN_API.users.list}?page=0&size=200`, {
@@ -331,14 +412,22 @@ function renderUsersTable(users) {
 	}).join('');
 }
 
+// BUG FIX: openUserForm now properly populates uf_userId and uf_role fields
 function openUserForm(userId) {
 	const u = allUsers.find(x => String(x.id) === String(userId));
 	if (!u) return;
 	editingUserId = userId;
 	document.getElementById('userFormTitle').textContent = 'Edit User_';
-	document.getElementById('uf_name').value = u.fullName || u.name || '';
-	document.getElementById('uf_email').value = u.email || '';
-	document.getElementById('uf_phone').value = u.phone || '';
+
+	// BUG FIX: populate the read-only userId and role fields
+	const ufUserId = document.getElementById('uf_userId');
+	const ufRole   = document.getElementById('uf_role');
+	if (ufUserId) ufUserId.value = String(u.id || '');
+	if (ufRole)   ufRole.value   = u.role || '—';
+
+	document.getElementById('uf_name').value     = u.fullName || u.name || '';
+	document.getElementById('uf_email').value    = u.email || '';
+	document.getElementById('uf_phone').value    = u.phone || '';
 	document.getElementById('uf_isActive').value = String(u.isActive !== false);
 	document.getElementById('userFormError').style.display = 'none';
 	document.getElementById('userFormModal').classList.add('show');
@@ -354,12 +443,12 @@ function closeUserFormOnBg(e) {
 }
 
 async function submitUserForm() {
-	const name = document.getElementById('uf_name').value.trim();
-	const email = document.getElementById('uf_email').value.trim();
-	const phone = document.getElementById('uf_phone').value.trim();
+	const name     = document.getElementById('uf_name').value.trim();
+	const email    = document.getElementById('uf_email').value.trim();
+	const phone    = document.getElementById('uf_phone').value.trim();
 	const isActive = document.getElementById('uf_isActive').value === 'true';
-	const errEl = document.getElementById('userFormError');
-	const btn = document.getElementById('userSubmitBtn');
+	const errEl    = document.getElementById('userFormError');
+	const btn      = document.getElementById('userSubmitBtn');
 
 	errEl.style.display = 'none';
 	if (!name) { errEl.textContent = 'Full name is required.'; errEl.style.display = 'block'; return; }
@@ -405,27 +494,12 @@ async function restoreUser(userId) {
 
 // ════════════════════════════════════════════════════════════════════════════
 //  CATEGORIES
-//
-//  DTOs used:
-//    CreateCategoryDto  → { name*, imageUrl, isActive, sortOrder, parentId }
-//    UpdateCategoryDto  → { name, imageUrl, isActive, sortOrder, parentId }
-//    CategoryFilterDto  → query params: name, isActive, isDeleted, parentId
-//    ReorderCategoriesDto → { orderedIds: UUID[] }
-//
-//  Endpoints:
-//    POST   /api/categories              createCategory
-//    PATCH  /api/categories/{id}         updateCategory
-//    DELETE /api/categories/{id}         softDelete  (blocked if active products/children exist)
-//    PATCH  /api/categories/{id}/restore restore
-//    PATCH  /api/categories/reorder      reorder
-//    GET    /api/categories/admin/all    listAll (admin, includes deleted, supports filter params)
 // ════════════════════════════════════════════════════════════════════════════
 let allCategories = [];
 let categoriesFetched = false;
 let editingCategoryId = null;
 let deletingCategoryId = null;
 
-// ── Open modal ────────────────────────────────────────────────────────────────
 async function openCategoriesModal() {
 	document.getElementById('categoriesModal').classList.add('show');
 	document.body.style.overflow = 'hidden';
@@ -449,13 +523,10 @@ function closeCategoriesModalOnBg(e) {
 	if (e.target === document.getElementById('categoriesModal')) closeCategoriesModal();
 }
 
-// ── Fetch  GET /api/categories/admin/all  (CategoryFilterDto as query params) ─
-// Supports: name, isActive, isDeleted, parentId
 async function fetchCategoriesFromApi(filters = {}) {
 	try {
-		// Build query string from CategoryFilterDto fields
 		const params = new URLSearchParams();
-		if (filters.name) params.set('name', filters.name);
+		if (filters.name)      params.set('name', filters.name);
 		if (filters.isActive !== undefined && filters.isActive !== '') params.set('isActive', filters.isActive);
 		if (filters.isDeleted !== undefined && filters.isDeleted !== '') params.set('isDeleted', filters.isDeleted);
 		if (filters.parentId && filters.parentId !== 'ROOT') params.set('parentId', filters.parentId);
@@ -476,10 +547,8 @@ async function fetchCategoriesFromApi(filters = {}) {
 	}
 }
 
-// ── Render table ──────────────────────────────────────────────────────────────
-// CategoryResponseDto: { id, name, slug, imageUrl, isActive, sortOrder, parentId }
 function renderCategoriesTable(cats) {
-	const tbody = document.getElementById('allCategoriesTable');
+	const tbody   = document.getElementById('allCategoriesTable');
 	const countEl = document.getElementById('modalCategoryCount');
 	if (countEl) countEl.textContent = `${cats.length} categor${cats.length !== 1 ? 'ies' : 'y'} found`;
 
@@ -489,9 +558,8 @@ function renderCategoriesTable(cats) {
 	}
 
 	tbody.innerHTML = cats.map((c, idx) => {
-		const isDeleted = c.isDeleted || c.deleted || !!c.deletedAt;
-		const isActive = c.isActive !== false;
-		// parentId is a UUID in CategoryResponseDto — look up name from local cache
+		const isDeleted  = c.isDeleted || c.deleted || !!c.deletedAt;
+		const isActive   = c.isActive !== false;
 		const parentName = allCategories.find(x => String(x.id) === String(c.parentId))?.name
 			|| (c.parentId ? 'Has parent' : '—');
 
@@ -523,32 +591,22 @@ function renderCategoriesTable(cats) {
 	}).join('');
 }
 
-// ── Client-side filtering using CategoryFilterDto fields ──────────────────────
-// The server supports these same fields as query params (sent in fetchCategoriesFromApi).
-// We do client-side filtering here for instant UX without extra API calls.
 function filterCategories() {
-	const name = (document.getElementById('categorySearchInput').value || '').toLowerCase().trim();
-	const isActive = document.getElementById('categoryActiveFilter').value;   // '' | 'true' | 'false'
-	const isDeleted = document.getElementById('categoryDeletedFilter').value;  // '' | 'true' | 'false'
-	const parentVal = document.getElementById('categoryParentFilter').value;   // '' | 'ROOT' | UUID
+	const name      = (document.getElementById('categorySearchInput').value || '').toLowerCase().trim();
+	const isActive  = document.getElementById('categoryActiveFilter').value;
+	const isDeleted = document.getElementById('categoryDeletedFilter').value;
+	const parentVal = document.getElementById('categoryParentFilter').value;
 
 	let results = [...allCategories];
 
-	// CategoryFilterDto.name — substring match on name
-	if (name) results = results.filter(c => (c.name || '').toLowerCase().includes(name));
-
-	// CategoryFilterDto.isActive
+	if (name)       results = results.filter(c => (c.name || '').toLowerCase().includes(name));
 	if (isActive !== '') results = results.filter(c => String(c.isActive !== false) === isActive);
-
-	// CategoryFilterDto.isDeleted
 	if (isDeleted !== '') {
 		results = results.filter(c => {
 			const deleted = !!(c.isDeleted || c.deleted || c.deletedAt);
 			return String(deleted) === isDeleted;
 		});
 	}
-
-	// CategoryFilterDto.parentId — 'ROOT' means parentId is null (root categories)
 	if (parentVal === 'ROOT') {
 		results = results.filter(c => !c.parentId);
 	} else if (parentVal) {
@@ -574,52 +632,38 @@ function populateCategoryParentFilter(cats) {
 		rootCats.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
 }
 
-// ── Open Add Category Form ────────────────────────────────────────────────────
-// Maps to CreateCategoryDto: { name*, imageUrl, isActive, sortOrder, parentId }
 function openCategoryForm() {
 	editingCategoryId = null;
 	document.getElementById('categoryFormTitle').textContent = 'Add Category_';
 	document.getElementById('categoryBtnText').textContent = 'Add Category';
-
-	// Reset all CreateCategoryDto fields
 	document.getElementById('cf_name').value = '';
 	document.getElementById('cf_isActive').value = 'true';
 	document.getElementById('cf_sortOrder').value = '';
 	document.getElementById('cf_parentId').value = '';
 	document.getElementById('cf_imageUrl').value = '';
-
 	document.getElementById('categoryImagePreviewWrap').style.display = 'none';
 	document.getElementById('categorySelectedFileName').style.display = 'none';
 	document.getElementById('categoryFormError').style.display = 'none';
-
 	populateCategoryParentSelect();
 	document.getElementById('categoryFormModal').classList.add('show');
 }
 
-// ── Open Edit Category Form ───────────────────────────────────────────────────
-// Maps to UpdateCategoryDto: { name, imageUrl, isActive, sortOrder, parentId }
-// CategoryResponseDto fields pre-filled: id, name, slug (read-only), imageUrl,
-//   isActive, sortOrder, parentId
 function openEditCategoryForm(categoryId) {
 	const c = allCategories.find(x => String(x.id) === String(categoryId));
 	if (!c) return;
 	editingCategoryId = categoryId;
 	document.getElementById('categoryFormTitle').textContent = 'Edit Category_';
 	document.getElementById('categoryBtnText').textContent = 'Save Changes';
-
-	// Pre-fill from CategoryResponseDto
 	document.getElementById('cf_name').value = c.name || '';
 	document.getElementById('cf_isActive').value = String(c.isActive !== false);
 	document.getElementById('cf_sortOrder').value = c.sortOrder ?? '';
 	document.getElementById('cf_parentId').value = c.parentId || '';
 	document.getElementById('cf_imageUrl').value = c.imageUrl || '';
-
 	document.getElementById('categoryFormError').style.display = 'none';
 	document.getElementById('categorySelectedFileName').style.display = 'none';
 
-	// Show existing image preview if available
 	const previewWrap = document.getElementById('categoryImagePreviewWrap');
-	const previewImg = document.getElementById('categoryImagePreview');
+	const previewImg  = document.getElementById('categoryImagePreview');
 	if (c.imageUrl) {
 		previewWrap.style.display = 'block';
 		previewImg.src = c.imageUrl;
@@ -640,7 +684,6 @@ function closeCategoryFormOnBg(e) {
 	if (e.target === document.getElementById('categoryFormModal')) closeCategoryForm();
 }
 
-// Populate parent select — exclude self to prevent circular dependency
 function populateCategoryParentSelect(selectedId = '') {
 	const sel = document.getElementById('cf_parentId');
 	if (!sel) return;
@@ -651,15 +694,14 @@ function populateCategoryParentSelect(selectedId = '') {
 			.join('');
 }
 
-// ── Image upload for category ─────────────────────────────────────────────────
 async function handleCategoryImageUpload(input) {
 	const file = input.files?.[0];
 	if (!file) return;
 
-	const nameEl = document.getElementById('categorySelectedFileName');
+	const nameEl  = document.getElementById('categorySelectedFileName');
 	const nameText = document.getElementById('categoryFileNameText');
-	const iconEl = document.getElementById('categoryUploadIcon');
-	const textEl = document.getElementById('categoryUploadText');
+	const iconEl  = document.getElementById('categoryUploadIcon');
+	const textEl  = document.getElementById('categoryUploadText');
 
 	if (nameEl && nameText) { nameEl.style.display = 'block'; nameText.textContent = file.name; }
 	if (iconEl) iconEl.textContent = '⏳';
@@ -678,11 +720,10 @@ async function handleCategoryImageUpload(input) {
 		const url = data?.imageUrl || data?.url || data?.data?.imageUrl;
 		if (!url) throw new Error('No URL returned');
 
-		// CreateCategoryDto / UpdateCategoryDto only has imageUrl — store it
 		document.getElementById('cf_imageUrl').value = url;
 
 		const previewWrap = document.getElementById('categoryImagePreviewWrap');
-		const previewImg = document.getElementById('categoryImagePreview');
+		const previewImg  = document.getElementById('categoryImagePreview');
 		if (previewWrap && previewImg) { previewWrap.style.display = 'block'; previewImg.src = url; }
 		if (iconEl) iconEl.textContent = '✓';
 		if (textEl) textEl.textContent = 'Image uploaded!';
@@ -697,42 +738,30 @@ async function handleCategoryImageUpload(input) {
 	}
 }
 
-// ── Submit form ───────────────────────────────────────────────────────────────
-// POST /api/categories       body: CreateCategoryDto  → { name*, imageUrl, isActive, sortOrder, parentId }
-// PATCH /api/categories/{id} body: UpdateCategoryDto  → { name, imageUrl, isActive, sortOrder, parentId }
 async function submitCategoryForm() {
-	const name = document.getElementById('cf_name').value.trim();
-	const isActive = document.getElementById('cf_isActive').value === 'true';
+	const name      = document.getElementById('cf_name').value.trim();
+	const isActive  = document.getElementById('cf_isActive').value === 'true';
 	const sortOrder = document.getElementById('cf_sortOrder').value;
-	const parentId = document.getElementById('cf_parentId').value || null;  // UUID or null
-	const imageUrl = document.getElementById('cf_imageUrl').value || null;
+	const parentId  = document.getElementById('cf_parentId').value || null;
+	const imageUrl  = document.getElementById('cf_imageUrl').value || null;
 
 	const errEl = document.getElementById('categoryFormError');
-	const btn = document.getElementById('categorySubmitBtn');
+	const btn   = document.getElementById('categorySubmitBtn');
 	const isEdit = editingCategoryId !== null;
 
 	errEl.style.display = 'none';
-
-	// @NotBlank on CreateCategoryDto.name
 	if (!name) { errEl.textContent = 'Category name is required.'; errEl.style.display = 'block'; return; }
 
 	btn.disabled = true;
 	document.getElementById('categoryBtnText').textContent = isEdit ? 'Saving...' : 'Adding...';
 
-	// Build payload matching CreateCategoryDto / UpdateCategoryDto exactly
-	const payload = {
-		name,
-		isActive,
-		parentId,   // UUID (string) or null
-		imageUrl,   // URL string or null
-	};
-	// sortOrder is Integer — include only if provided
+	const payload = { name, isActive, parentId, imageUrl };
 	if (sortOrder !== '' && sortOrder !== null && sortOrder !== undefined) {
 		payload.sortOrder = Number(sortOrder);
 	}
 
 	try {
-		const url = isEdit ? ADMIN_API.categories.update(editingCategoryId) : ADMIN_API.categories.create;
+		const url    = isEdit ? ADMIN_API.categories.update(editingCategoryId) : ADMIN_API.categories.create;
 		const method = isEdit ? 'PATCH' : 'POST';
 		const res = await fetch(url, {
 			method,
@@ -741,7 +770,6 @@ async function submitCategoryForm() {
 		});
 		if (!res.ok) throw new Error(parseApiError(await res.text()));
 
-		// Refresh local cache from server
 		const fresh = await fetchCategoriesFromApi();
 		if (fresh) { allCategories = fresh; categoriesFetched = true; }
 		closeCategoryForm();
@@ -757,9 +785,6 @@ async function submitCategoryForm() {
 	}
 }
 
-// ── Delete ────────────────────────────────────────────────────────────────────
-// DELETE /api/categories/{id}
-// Blocked server-side if active products or child categories still exist
 function openDeleteCategoryConfirm(categoryId, categoryName) {
 	deletingCategoryId = String(categoryId);
 	document.getElementById('deleteCategoryName').textContent = categoryName;
@@ -792,15 +817,12 @@ async function confirmDeleteCategory() {
 		populateCategoryParentFilter(allCategories);
 		alert('Category deleted successfully');
 	} catch (e) {
-		// Server blocks delete if active products/children exist — surface the message
 		alert('Delete failed: ' + (e.message || 'Unknown error'));
 	} finally {
 		btn.disabled = false; btn.textContent = 'Delete';
 	}
 }
 
-// ── Restore ───────────────────────────────────────────────────────────────────
-// PATCH /api/categories/{id}/restore
 async function restoreCategory(categoryId) {
 	if (!confirm('Restore this category?')) return;
 	try {
@@ -817,12 +839,8 @@ async function restoreCategory(categoryId) {
 	} catch (e) { alert(e.message || 'Failed to restore category'); }
 }
 
-// ── Reorder ───────────────────────────────────────────────────────────────────
-// PATCH /api/categories/reorder
-// Body: ReorderCategoriesDto → { orderedIds: UUID[] }
-// @NotNull @NotEmpty on orderedIds
 async function saveCategoryReorder() {
-	const rows = document.querySelectorAll('#allCategoriesTable tr[data-id]');
+	const rows       = document.querySelectorAll('#allCategoriesTable tr[data-id]');
 	const orderedIds = Array.from(rows).map(r => r.dataset.id).filter(Boolean);
 
 	if (!orderedIds.length) { alert('No categories to reorder'); return; }
@@ -831,12 +849,10 @@ async function saveCategoryReorder() {
 		const res = await fetch(ADMIN_API.categories.reorder, {
 			method: 'PATCH',
 			headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
-			// ReorderCategoriesDto shape exactly
 			body: JSON.stringify({ orderedIds })
 		});
 		if (!res.ok) throw new Error(parseApiError(await res.text()));
 
-		// Refresh to reflect server-assigned sortOrder values
 		const fresh = await fetchCategoriesFromApi();
 		if (fresh) { allCategories = fresh; categoriesFetched = true; }
 		renderCategoriesTable(allCategories);
@@ -844,7 +860,6 @@ async function saveCategoryReorder() {
 	} catch (e) { alert(e.message || 'Failed to save order'); }
 }
 
-// ── Populate category select inside product form ──────────────────────────────
 async function populateProductCategorySelect(selectedId = '') {
 	const sel = document.getElementById('pf_categoryId');
 	if (!sel) return;
@@ -864,10 +879,43 @@ async function populateProductCategorySelect(selectedId = '') {
 // ════════════════════════════════════════════════════════════════════════════
 let allOrders = [];
 let ordersFetched = false;
+let orderItemsCache = {};
+
+function getOrderStatusBadgeClass(status) {
+	const statusColors = {
+		PENDING:          'badge-yellow',
+		CONFIRMED:        'badge-blue',
+		PROCESSING:       'badge-blue',
+		DISPATCHED:       'badge-green',
+		OUT_FOR_DELIVERY: 'badge-green',
+		DELIVERED:        'badge-green',
+		CANCELLED:        'badge-red'
+	};
+	return statusColors[status] || 'badge-yellow';
+}
+
+function getOrderPlacedAt(order) {
+	return order?.placedAt || order?.createdAt || order?.orderDate || null;
+}
+
+function getOrderCustomerName(order) {
+	return order?.customerName || order?.userName || order?.user?.fullName || order?.user?.name || '—';
+}
+
+function formatOrderDateTime(value) {
+	if (!value) return '—';
+	try {
+		return new Date(value).toLocaleString('en-IN', {
+			year: 'numeric', month: 'short', day: 'numeric',
+			hour: '2-digit', minute: '2-digit'
+		});
+	} catch (e) { return value; }
+}
 
 async function openOrdersModal() {
 	document.getElementById('ordersModal').classList.add('show');
 	document.body.style.overflow = 'hidden';
+
 	if (!ordersFetched) {
 		document.getElementById('allOrdersTable').innerHTML =
 			`<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Loading orders...</td></tr>`;
@@ -888,12 +936,23 @@ function closeOrdersModalOnBg(e) {
 
 async function fetchOrders() {
 	try {
-		const res = await fetch(`${ADMIN_API.orders.list}?page=0&size=200`, {
+		const params = new URLSearchParams({ page: '0', size: '200' });
+		const status   = document.getElementById('orderStatusFilter')?.value || '';
+		const fromDate = document.getElementById('orderFromDate')?.value || '';
+		const toDate   = document.getElementById('orderToDate')?.value || '';
+
+		if (status)   params.set('status', status);
+		if (fromDate) params.set('fromDate', new Date(fromDate).toISOString());
+		if (toDate)   params.set('toDate', new Date(toDate).toISOString());
+
+		const res = await fetch(`${ADMIN_API.orders.list}?${params.toString()}`, {
 			headers: { 'Authorization': 'Bearer ' + token }
 		});
+
 		if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return null; }
 		if (!res.ok) throw new Error(parseApiError(await res.text()));
-		const raw = await res.json();
+
+		const raw  = await res.json();
 		const data = unwrapApiResponse(raw);
 		return Array.isArray(data) ? data : (data?.content || []);
 	} catch (e) {
@@ -903,61 +962,163 @@ async function fetchOrders() {
 	}
 }
 
+function renderOrderItemsBlock(orderId) {
+	const items = orderItemsCache[orderId];
+
+	if (items === undefined) {
+		return `<div style="padding:12px 0;color:var(--muted);font-size:12px">Click <b>Items</b> to load order items.</div>`;
+	}
+	if (items === null) {
+		return `<div style="padding:12px 0;color:var(--red);font-size:12px">Failed to load order items.</div>`;
+	}
+	if (!Array.isArray(items) || !items.length) {
+		return `<div style="padding:12px 0;color:var(--muted);font-size:12px">No order items found.</div>`;
+	}
+
+	const ORDER_ITEM_STATUSES = ['PENDING','CONFIRMED','PROCESSING','DISPATCHED','OUT_FOR_DELIVERY','DELIVERED','CANCELLED'];
+
+	return `
+		<div style="padding:12px 0">
+			<table style="width:100%;border-collapse:collapse;font-size:12px">
+				<thead>
+					<tr style="background:var(--surface2)">
+						<th style="padding:8px 12px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Product</th>
+						<th style="padding:8px 12px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Qty</th>
+						<th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Unit Price</th>
+						<th style="padding:8px 12px;text-align:right;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Line Total</th>
+						<th style="padding:8px 12px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Status</th>
+						<th style="padding:8px 12px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)">Update</th>
+					</tr>
+				</thead>
+				<tbody>
+					${items.map(item => {
+						// FIX: OrderItemResponseDto uses "id" not "itemId" — support both
+						const itemId    = item.id || item.itemId || '';
+						const name      = item.productName || item.name || '—';
+						const qty       = Number(item.quantity || item.qty || 0);
+						const unitPrice = Number(item.unitPrice || item.price || item.sellingPrice || 0);
+						// FIX: compute lineTotal if field is missing/zero
+						const lineTotal = Number(item.lineTotal || item.totalPrice || item.amount || (unitPrice * qty));
+						const curStatus = item.status || item.itemStatus || '';
+						const statusCls = getOrderStatusBadgeClass(curStatus);
+
+						// Build options with the current status pre-selected
+						const options = ORDER_ITEM_STATUSES.map(s =>
+							`<option value="${s}" ${s === curStatus ? 'selected' : ''}>${s}</option>`
+						).join('');
+
+						return `
+						<tr style="border-top:1px solid var(--border)">
+							<td style="padding:10px 12px;font-weight:500">${escapeHtml(name)}</td>
+							<td style="padding:10px 12px;text-align:center">
+								<span style="background:var(--accent-dim);color:var(--accent);border:1px solid rgba(59,130,246,0.2);border-radius:5px;padding:2px 8px;font-weight:600">${qty}</span>
+							</td>
+							<td style="padding:10px 12px;text-align:right">₹${unitPrice.toLocaleString('en-IN')}</td>
+							<td style="padding:10px 12px;text-align:right;font-weight:700;font-family:'Space Mono',monospace">₹${lineTotal.toLocaleString('en-IN')}</td>
+							<td style="padding:10px 12px;text-align:center">
+								${curStatus ? `<span class="badge ${statusCls}" style="font-size:10px">${escapeHtml(curStatus)}</span>` : '<span style="color:var(--muted)">—</span>'}
+							</td>
+							<td style="padding:10px 12px;text-align:center">
+								${itemId
+									? `<select onchange="updateOrderItemStatus('${itemId}', this.value); this.value='${curStatus}';"
+										style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:11px;cursor:pointer;max-width:140px">
+										${options}
+										</select>`
+									: '<span style="color:var(--muted);font-size:11px">No ID</span>'
+								}
+							</td>
+						</tr>`;
+					}).join('')}
+				</tbody>
+			</table>
+		</div>
+	`;
+}
+
 function renderOrdersTable(orders) {
-	const tbody = document.getElementById('allOrdersTable');
+	const tbody   = document.getElementById('allOrdersTable');
 	const countEl = document.getElementById('modalOrderCount');
+
 	if (countEl) countEl.textContent = `${orders.length} order${orders.length !== 1 ? 's' : ''} found`;
+
 	if (!orders.length) {
 		tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">No orders found</td></tr>`;
 		return;
 	}
+
 	tbody.innerHTML = orders.map(o => {
-		const statusColors = {
-			PENDING: 'badge-yellow', CONFIRMED: 'badge-accent', PROCESSING: 'badge-accent',
-			DISPATCHED: 'badge-green', OUT_FOR_DELIVERY: 'badge-green',
-			DELIVERED: 'badge-green', CANCELLED: 'badge-red'
-		};
-		const statusCls = statusColors[o.status] || 'badge-yellow';
-		const placed = o.createdAt || o.placedAt ? new Date(o.createdAt || o.placedAt).toLocaleDateString('en-IN') : '—';
-		const customerName = o.customerName || o.userName || o.user?.fullName || o.user?.name || '—';
-		const total = Number(o.totalAmount || o.total || 0).toLocaleString('en-IN');
+		const orderId      = o.orderId || o.id;
+		const status       = o.status || 'PENDING';
+		const statusCls    = getOrderStatusBadgeClass(status);
+		const placed       = formatOrderDateTime(getOrderPlacedAt(o));
+		const customerName = getOrderCustomerName(o);
+		// FIX: AdminOrderDto may use totalAmount, total, or grandTotal — compute from items as last resort
+		const itemsTotal   = Array.isArray(o.orderItems || o.items) ? (o.orderItems || o.items).reduce((s, i) => s + Number(i.lineTotal || i.totalPrice || 0), 0) : 0;
+		const total        = Number(o.totalAmount || o.grandTotal || o.total || o.finalAmount || itemsTotal || 0).toLocaleString('en-IN');
+
 		return `
-            <tr>
-                <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)">#${escapeHtml(String(o.id || '').slice(0, 8))}</td>
-                <td style="font-weight:600">${escapeHtml(o.orderNumber || '—')}</td>
-                <td>${escapeHtml(customerName)}</td>
-                <td><span class="badge ${statusCls}">${escapeHtml(o.status || '—')}</span></td>
-                <td>₹${total}</td>
-                <td style="color:var(--muted);font-size:12px">${placed}</td>
-                <td style="text-align:center">
-                    <div class="action-btns" style="justify-content:center;flex-wrap:wrap">
-                        <select onchange="updateOrderStatus('${o.id}', this.value)" style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:12px;cursor:pointer">
-                            <option value="">Update Status</option>
-                            <option value="confirm">Confirm</option>
-                            <option value="processing">Processing</option>
-                            <option value="dispatch">Dispatch</option>
-                            <option value="out-for-delivery">Out For Delivery</option>
-                            <option value="deliver">Deliver</option>
-                        </select>
-                    </div>
-                </td>
-            </tr>
-        `;
+			<tr>
+				<td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)">#${escapeHtml(String(orderId || '').slice(0, 8))}</td>
+				<td style="font-weight:600">${escapeHtml(o.orderNumber || '—')}</td>
+				<td>${escapeHtml(customerName)}</td>
+				<td><span class="badge ${statusCls}">${escapeHtml(status)}</span></td>
+				<td>₹${total}</td>
+				<td style="color:var(--muted);font-size:12px">${placed}</td>
+				<td style="text-align:center">
+					<div class="action-btns" style="justify-content:center;flex-wrap:wrap">
+						<button class="act" onclick="loadOrderItems('${orderId}')">Items</button>
+						<select onchange="runOrderQuickAction('${orderId}', this.value); this.value='';"
+							style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:12px;cursor:pointer">
+							<option value="">Lifecycle</option>
+							<option value="confirm">Confirm</option>
+							<option value="processing">Processing</option>
+							<option value="dispatch">Dispatch</option>
+							<option value="out-for-delivery">Out For Delivery</option>
+							<option value="deliver">Deliver</option>
+						</select>
+
+						<button class="act del" onclick="softDeleteOrder('${orderId}')">Delete</button>
+					</div>
+					<div id="order-items-wrap-${orderId}" style="margin-top:10px;text-align:left"></div>
+				</td>
+			</tr>
+		`;
 	}).join('');
 }
 
-async function updateOrderStatus(orderId, action) {
+async function loadOrderItems(orderId) {
+	const wrap = document.getElementById(`order-items-wrap-${orderId}`);
+	if (wrap) wrap.innerHTML = `<div style="color:var(--muted);font-size:12px">Loading order items...</div>`;
+
+	try {
+		const res = await fetch(ADMIN_API.orders.items(orderId), {
+			headers: { 'Authorization': 'Bearer ' + token }
+		});
+		if (!res.ok) throw new Error(parseApiError(await res.text()));
+		const raw  = await res.json();
+		const data = unwrapApiResponse(raw);
+		orderItemsCache[orderId] = Array.isArray(data) ? data : [];
+		if (wrap) wrap.innerHTML = renderOrderItemsBlock(orderId);
+	} catch (e) {
+		orderItemsCache[orderId] = null;
+		if (wrap) wrap.innerHTML = renderOrderItemsBlock(orderId);
+		alert(e.message || 'Failed to load order items');
+	}
+}
+
+async function runOrderQuickAction(orderId, action) {
 	if (!action) return;
 	const actorId = getActorId();
 	const urlMap = {
-		'confirm': ADMIN_API.orders.confirm(orderId),
-		'processing': ADMIN_API.orders.processing(orderId),
-		'dispatch': ADMIN_API.orders.dispatch(orderId),
-		'out-for-delivery': ADMIN_API.orders.outForDelivery(orderId),
-		'deliver': ADMIN_API.orders.deliver(orderId),
+		confirm:           ADMIN_API.orders.confirm(orderId),
+		processing:        ADMIN_API.orders.processing(orderId),
+		dispatch:          ADMIN_API.orders.dispatch(orderId),
+		'out-for-delivery':ADMIN_API.orders.outForDelivery(orderId),
+		deliver:           ADMIN_API.orders.deliver(orderId),
 	};
 	const url = urlMap[action];
 	if (!url) return;
+
 	try {
 		const res = await fetch(url, {
 			method: 'PATCH',
@@ -967,19 +1128,88 @@ async function updateOrderStatus(orderId, action) {
 		const fresh = await fetchOrders();
 		if (fresh) { allOrders = fresh; ordersFetched = true; }
 		renderOrdersTable(allOrders);
+		alert('Order lifecycle updated successfully');
+	} catch (e) { alert(e.message || 'Failed to update order lifecycle'); }
+}
+
+async function updateOrderStatus(orderId, status) {
+	if (!status) return;
+	const actorId = getActorId();
+	try {
+		const res = await fetch(ADMIN_API.orders.updateStatus(orderId), {
+			method: 'PATCH',
+			headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': actorId, 'Content-Type': 'application/json' },
+			body: JSON.stringify({ status })
+		});
+		if (!res.ok) throw new Error(parseApiError(await res.text()));
+		const fresh = await fetchOrders();
+		if (fresh) { allOrders = fresh; ordersFetched = true; }
+		renderOrdersTable(allOrders);
 		alert('Order status updated successfully');
 	} catch (e) { alert(e.message || 'Failed to update order status'); }
 }
 
+async function updateOrderItemStatus(itemId, status) {
+	if (!itemId || !status) return;
+	const actorId = getActorId();
+	try {
+		const res = await fetch(ADMIN_API.orders.updateItemStatus(itemId), {
+			method: 'PATCH',
+			headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': actorId, 'Content-Type': 'application/json' },
+			body: JSON.stringify({ status })
+		});
+		if (!res.ok) throw new Error(parseApiError(await res.text()));
+		alert('Order item status updated successfully');
+	} catch (e) { alert(e.message || 'Failed to update order item status'); }
+}
+
+async function softDeleteOrder(orderId) {
+	if (!confirm('Are you sure you want to delete this order?')) return;
+	const actorId = getActorId();
+	try {
+		const res = await fetch(ADMIN_API.orders.delete(orderId), {
+			method: 'DELETE',
+			headers: { 'Authorization': 'Bearer ' + token, 'X-Actor-Id': actorId }
+		});
+		if (!(res.ok || res.status === 204)) throw new Error(parseApiError(await res.text()));
+		const fresh = await fetchOrders();
+		if (fresh) { allOrders = fresh; ordersFetched = true; }
+		renderOrdersTable(allOrders);
+		alert('Order deleted successfully');
+	} catch (e) { alert(e.message || 'Failed to delete order'); }
+}
+
 function filterOrders() {
-	const q = (document.getElementById('orderSearch').value || '').toLowerCase();
-	const status = document.getElementById('orderStatusFilter').value;
+	const q        = (document.getElementById('orderSearch').value || '').toLowerCase().trim();
+	const status   = document.getElementById('orderStatusFilter').value;
+	const fromDate = document.getElementById('orderFromDate')?.value || '';
+	const toDate   = document.getElementById('orderToDate')?.value || '';
+
 	let results = [...allOrders];
-	if (q) results = results.filter(o =>
-		(o.orderNumber || '').toLowerCase().includes(q) ||
-		(o.customerName || o.userName || '').toLowerCase().includes(q)
-	);
+
+	if (q) {
+		results = results.filter(o =>
+			(o.orderNumber || '').toLowerCase().includes(q) ||
+			getOrderCustomerName(o).toLowerCase().includes(q) ||
+			String(o.orderId || o.id || '').toLowerCase().includes(q)
+		);
+	}
 	if (status) results = results.filter(o => o.status === status);
+	if (fromDate) {
+		const from = new Date(fromDate).getTime();
+		results = results.filter(o => {
+			const placed = getOrderPlacedAt(o);
+			return placed ? new Date(placed).getTime() >= from : false;
+		});
+	}
+	if (toDate) {
+		const to = new Date(toDate).getTime();
+		results = results.filter(o => {
+			const placed = getOrderPlacedAt(o);
+			return placed ? new Date(placed).getTime() <= to : false;
+		});
+	}
+
 	renderOrdersTable(results);
 	const countEl = document.getElementById('modalOrderCount');
 	if (countEl) countEl.textContent = `${results.length} of ${allOrders.length} orders`;
@@ -988,27 +1218,33 @@ function filterOrders() {
 function clearOrderFilters() {
 	document.getElementById('orderSearch').value = '';
 	document.getElementById('orderStatusFilter').value = '';
+	const fromEl = document.getElementById('orderFromDate');
+	const toEl   = document.getElementById('orderToDate');
+	if (fromEl) fromEl.value = '';
+	if (toEl)   toEl.value   = '';
 	renderOrdersTable(allOrders);
 }
 
 async function exportOrdersCSV() {
 	const header = ['Order ID', 'Order Number', 'Customer', 'Status', 'Total', 'Placed At'];
-	const lines = allOrders.map(o => [
-		o.id, o.orderNumber || '',
-		o.customerName || o.userName || '',
+	const lines  = allOrders.map(o => [
+		o.orderId || o.id || '',
+		o.orderNumber || '',
+		getOrderCustomerName(o),
 		o.status || '',
 		o.totalAmount || o.total || 0,
-		o.createdAt || o.placedAt || ''
+		getOrderPlacedAt(o) || ''
 	].map(v => `"${String(v).replace(/"/g, '""')}"`).join(','));
+
 	const csv = [header.join(','), ...lines].join('\n');
-	const a = document.createElement('a');
+	const a   = document.createElement('a');
 	a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
 	a.download = `orders_${Date.now()}.csv`;
 	a.click();
 }
 
 // ════════════════════════════════════════════════════════════════════════════
-//  CART ADMIN
+//  CART ADMIN  —  View + Delete user carts
 // ════════════════════════════════════════════════════════════════════════════
 let cartAdminUsers = [];
 
@@ -1029,31 +1265,26 @@ function closeCartAdminModalOnBg(e) {
 
 async function refreshCartAdminModal() {
 	document.getElementById('cartAdminTable').innerHTML =
-		`<tr><td colspan="7" style="text-align:center;padding:32px;color:var(--muted)">Loading users...</td></tr>`;
+		`<tr><td colspan="8" style="text-align:center;padding:32px;color:var(--muted)">Loading users...</td></tr>`;
 
 	const users = await fetchUsers();
 	if (users) {
 		cartAdminUsers = users;
 		renderCartAdminTable(cartAdminUsers);
-
 		const countEl = document.getElementById('modalCartAdminCount');
-		if (countEl) {
-			countEl.textContent = `${users.length} users — click Delete Cart to clear a user's cart`;
-		}
+		if (countEl) countEl.textContent = `${users.length} users — View or Delete their carts`;
 	}
 }
 
 function renderCartAdminTable(users) {
 	const tbody = document.getElementById('cartAdminTable');
-
 	if (!users.length) {
-		tbody.innerHTML = `<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--muted)">No users found</td></tr>`;
+		tbody.innerHTML = `<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--muted)">No users found</td></tr>`;
 		return;
 	}
 
 	tbody.innerHTML = users.map(u => {
 		const isActive = u.isActive !== false;
-
 		return `
             <tr>
                 <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)">
@@ -1062,19 +1293,15 @@ function renderCartAdminTable(users) {
                 <td style="font-weight:500">${escapeHtml(u.fullName || u.name || '—')}</td>
                 <td style="color:var(--muted)">${escapeHtml(u.email || '—')}</td>
                 <td style="color:var(--muted)">${escapeHtml(u.phone || '—')}</td>
-                <td>
-                    <span class="badge ${u.role === 'ADMIN' ? 'badge-accent' : 'badge-green'}">
-                        ${escapeHtml(u.role || '—')}
-                    </span>
-                </td>
-                <td>
-                    <span class="badge ${isActive ? 'badge-green' : 'badge-yellow'}">
-                        ${isActive ? 'Active' : 'Inactive'}
-                    </span>
+                <td><span class="badge ${u.role === 'ADMIN' ? 'badge-accent' : 'badge-green'}">${escapeHtml(u.role || '—')}</span></td>
+                <td><span class="badge ${isActive ? 'badge-green' : 'badge-yellow'}">${isActive ? 'Active' : 'Inactive'}</span></td>
+                <td style="text-align:center">
+                    <button class="act" onclick="viewUserCart('${u.id}','${escapeHtml(u.fullName || u.name || 'User')}')">
+                        🛒 View Cart
+                    </button>
                 </td>
                 <td style="text-align:center">
-                    <button class="act del"
-                        onclick="deleteUserCart('${u.id}','${escapeHtml(u.fullName || u.name || 'this user')}')">
+                    <button class="act del" onclick="deleteUserCart('${u.id}','${escapeHtml(u.fullName || u.name || 'this user')}')">
                         🗑 Delete Cart
                     </button>
                 </td>
@@ -1085,38 +1312,308 @@ function renderCartAdminTable(users) {
 
 function filterCartAdminUsers() {
 	const q = (document.getElementById('cartAdminSearch').value || '').toLowerCase();
-
-	if (!q) {
-		renderCartAdminTable(cartAdminUsers);
-		return;
-	}
-
+	if (!q) { renderCartAdminTable(cartAdminUsers); return; }
 	const filtered = cartAdminUsers.filter(u =>
 		(u.fullName || u.name || '').toLowerCase().includes(q) ||
 		(u.email || '').toLowerCase().includes(q) ||
 		(u.phone || '').toLowerCase().includes(q) ||
 		String(u.id || '').toLowerCase().includes(q)
 	);
-
 	renderCartAdminTable(filtered);
 }
 
-async function deleteUserCart(userId, userName) {
-	if (!confirm(`Delete cart for ${userName}? This cannot be undone.`)) return;
+// ── VIEW USER CART ────────────────────────────────────────────────────────────
+// FIX: GET /api/v1/cart/admin?userId=... is now implemented in CartController.java.
+// The @GetMapping("/admin") + @PreAuthorize("hasRole('ADMIN')") endpoint was missing,
+// which caused Spring to return 405 Method Not Allowed for every View Cart click.
+async function viewUserCart(userId, userName) {
+	const actorId = getActorId();
+	if (!actorId) {
+		alert('Actor ID missing — please log in again.');
+		return;
+	}
+
+	// Open the cart view modal immediately with a loading state
+	document.getElementById('cartViewUserName').textContent = userName;
+	document.getElementById('cartViewContent').innerHTML = `
+		<div style="text-align:center;padding:40px;color:var(--muted)">
+			<div style="font-size:24px;margin-bottom:12px">⏳</div>
+			<div>Loading cart for ${escapeHtml(userName)}...</div>
+		</div>`;
+	document.getElementById('cartViewModal').classList.add('show');
 
 	try {
-		const res = await fetch(ADMIN_API.cart.deleteByUser(userId), {
-			method: 'DELETE',
+		const res = await fetch(ADMIN_API.cart.viewByUser(userId), {
+			method: 'GET',
 			headers: {
-				'Authorization': 'Bearer ' + token
+				'Authorization': 'Bearer ' + token,
+				'X-Actor-Id': actorId          // FIX: send actor id like every other admin call
 			}
 		});
+
+		if (res.status === 404) {
+			// User exists but has no cart yet — show empty state
+			document.getElementById('cartViewContent').innerHTML = renderEmptyCart(userName);
+			return;
+		}
+
+		if (res.status === 403) {
+			// Token is valid but role is not ADMIN — should not happen if login is correct
+			document.getElementById('cartViewContent').innerHTML = `
+				<div style="text-align:center;padding:40px;color:var(--red)">
+					<div style="font-size:24px;margin-bottom:12px">🔒</div>
+					<div style="font-weight:600;margin-bottom:8px">Access Denied</div>
+					<div style="font-size:13px;color:var(--muted)">
+						Your account does not have the ADMIN role.<br>
+						Make sure your token belongs to an admin user.
+					</div>
+				</div>`;
+			return;
+		}
+
+		if (res.status === 405) {
+			// Should no longer happen after the CartController.java fix, but kept as a safety net
+			document.getElementById('cartViewContent').innerHTML = renderCartBackendNotice(userName);
+			return;
+		}
 
 		if (!res.ok) {
 			throw new Error(parseApiError(await res.text()));
 		}
 
-		alert(`Cart deleted for ${userName}`);
+		const raw  = await res.json();
+		const cart = unwrapApiResponse(raw);
+		document.getElementById('cartViewContent').innerHTML = renderCartDetails(cart, userName);
+	} catch (e) {
+		document.getElementById('cartViewContent').innerHTML = `
+			<div style="text-align:center;padding:40px;color:var(--red)">
+				<div style="font-size:24px;margin-bottom:12px">⚠️</div>
+				<div style="font-weight:600;margin-bottom:8px">Failed to load cart</div>
+				<div style="font-size:13px;color:var(--muted)">${escapeHtml(e.message)}</div>
+			</div>`;
+	}
+}
+
+function renderEmptyCart(userName) {
+	return `
+		<div style="text-align:center;padding:48px 24px;color:var(--muted)">
+			<div style="font-size:40px;margin-bottom:16px">🛒</div>
+			<div style="font-size:16px;font-weight:600;color:var(--text);margin-bottom:8px">${escapeHtml(userName)}'s cart is empty</div>
+			<div style="font-size:13px">No items in cart · No coupon applied</div>
+		</div>`;
+}
+
+function renderCartBackendNotice(userName) {
+	return `
+		<div style="padding:24px">
+			<div style="background:rgba(234,179,8,0.08);border:1px solid rgba(234,179,8,0.25);border-radius:12px;padding:20px 24px">
+				<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+					<span style="font-size:20px">⚠️</span>
+					<strong style="color:var(--yellow)">Backend endpoint not yet available</strong>
+				</div>
+				<p style="font-size:13px;color:var(--muted);line-height:1.6;margin-bottom:16px">
+					Your CartController does not currently have a <code>GET /api/v1/cart/admin</code> endpoint.
+					To enable viewing user carts, add the following method to <strong>CartController.java</strong>:
+				</p>
+				<pre style="background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:16px;font-size:12px;color:var(--text);overflow-x:auto;line-height:1.6">@GetMapping("/admin")
+@PreAuthorize("hasRole('ADMIN')")
+public ResponseEntity&lt;ApiResponse&lt;CartResponse&gt;&gt; adminGetCart(
+        @RequestParam UUID userId,
+        @CurrentUser UserPrincipal principal) {
+    CartResponse cart = cartService.getOrCreateCart(userId, principal.getId());
+    return ResponseEntity.ok(
+        ApiResponse.success("Cart fetched successfully", cart)
+    );
+}</pre>
+				<p style="font-size:12px;color:var(--muted);margin-top:12px">
+					Once added, clicking "View Cart" will show the full cart with all items, quantities, prices, and any applied coupon.
+				</p>
+			</div>
+		</div>`;
+}
+
+function renderCartDetails(cart, userName) {
+	if (!cart) return renderEmptyCart(userName);
+
+	const items = cart.items || cart.cartItems || [];
+	if (!items.length) return renderEmptyCart(userName);
+
+	const coupon = cart.couponCode || cart.appliedCoupon || null;
+
+	// ── Per-item field extraction ────────────────────────────────────────────
+	// CartItemResponse from Spring may nest product info under item.product.*
+	// OR it may flatten fields directly onto the item. We handle both shapes.
+	const resolvedItems = items.map(item => {
+		const p = item.product || {};                                   // nested product object (if any)
+
+		// SKU: try flat field first, then nested product
+		const sku = item.sku || item.productSku || p.sku || '';
+
+		// MRP: try flat, then nested
+		const mrp = Number(item.mrp || item.productMrp || p.mrp || p.price || 0);
+
+		// Unit (selling) price
+		const unitPrice = Number(
+			item.unitPrice || item.sellingPrice || item.price ||
+			p.sellingPrice || p.unitPrice || 0
+		);
+
+		// Quantity
+		const qty = Number(item.quantity || item.qty || 1);
+
+		// Line total: trust the server value if present, otherwise compute
+		const lineTotal = Number(
+			item.lineTotal || item.totalPrice || item.itemTotal ||
+			item.subTotal  || item.amount     ||
+			(unitPrice * qty)                                           // ← computed fallback
+		);
+
+		// Product name
+		const name = item.productName || item.name || p.name || '—';
+
+		// Product image
+		const img = item.productImageUrl || item.imageUrl ||
+			p.imageUrl || p.thumbnailUrl ||
+			(Array.isArray(item.images) ? item.images[0] : '') ||
+			(Array.isArray(p.images)    ? p.images[0]    : '');
+
+		// Product ID (for the short-ID subtitle)
+		const productId = item.productId || p.id || '';
+
+		return { sku, mrp, unitPrice, qty, lineTotal, name, img, productId };
+	});
+
+	// ── Summary totals ───────────────────────────────────────────────────────
+	// Always compute from items so the summary can never be ₹0 when items show prices.
+	const computedLineTotal = resolvedItems.reduce((s, i) => s + i.lineTotal, 0);
+	const computedMrpTotal  = resolvedItems.reduce((s, i) => s + (i.mrp || i.unitPrice) * i.qty, 0);
+
+	// Accept server totals only when they are non-zero; otherwise fall back to computed.
+	const subtotal = Number(cart.subtotal  || cart.totalMrp      || cart.mrpTotal || 0) || computedMrpTotal;
+	const total    = Number(cart.totalAmount || cart.grandTotal   || cart.total    ||
+	                        cart.finalAmount  || cart.netAmount   || cart.payableAmount || 0)
+	                 || computedLineTotal;
+	const discount = Number(cart.discount  || cart.discountAmount || cart.couponDiscount || 0)
+	                 || Math.max(0, subtotal - total);
+	const savings  = Number(cart.totalSavings || cart.savedAmount || discount || 0);
+
+	// ── HTML ─────────────────────────────────────────────────────────────────
+	return `
+		<div style="padding:0">
+			<!-- Summary bar -->
+			<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid var(--border)">
+				${[
+					['Items',    resolvedItems.length,                                         'var(--accent)'],
+					['Subtotal', `₹${subtotal.toLocaleString('en-IN')}`,                      'var(--text)'],
+					['Discount', discount ? `−₹${discount.toLocaleString('en-IN')}` : '—',    discount ? 'var(--green)' : 'var(--muted)'],
+					['Total',    `₹${total.toLocaleString('en-IN')}`,                         'var(--yellow)'],
+				].map(([label, value, color]) => `
+					<div style="padding:16px 20px;border-right:1px solid var(--border)">
+						<div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">${label}</div>
+						<div style="font-family:'Space Mono',monospace;font-size:18px;font-weight:700;color:${color}">${value}</div>
+					</div>`).join('')}
+			</div>
+
+			${coupon ? `
+			<!-- Coupon strip -->
+			<div style="display:flex;align-items:center;gap:10px;padding:10px 20px;background:rgba(34,197,94,0.06);border-bottom:1px solid rgba(34,197,94,0.15)">
+				<span style="font-size:14px">🏷️</span>
+				<span style="font-size:13px;color:var(--green);font-weight:600">
+					Coupon applied: <code style="background:rgba(34,197,94,0.12);padding:2px 8px;border-radius:4px">${escapeHtml(coupon)}</code>
+				</span>
+				${savings ? `<span style="margin-left:auto;font-size:12px;color:var(--green)">Saving ₹${savings.toLocaleString('en-IN')}</span>` : ''}
+			</div>` : ''}
+
+			<!-- Items table -->
+			<table style="width:100%;border-collapse:collapse">
+				<thead>
+					<tr>
+						<th style="padding:12px 20px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--surface2)">Product</th>
+						<th style="padding:12px 20px;text-align:left;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--surface2)">SKU</th>
+						<th style="padding:12px 20px;text-align:center;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--surface2)">Qty</th>
+						<th style="padding:12px 20px;text-align:right;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--surface2)">MRP</th>
+						<th style="padding:12px 20px;text-align:right;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--surface2)">Unit Price</th>
+						<th style="padding:12px 20px;text-align:right;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);background:var(--surface2)">Line Total</th>
+					</tr>
+				</thead>
+				<tbody>
+					${resolvedItems.map(({ sku, mrp, unitPrice, qty, lineTotal, name, img, productId }) => {
+						const hasSaving = mrp > unitPrice && unitPrice > 0;
+						return `
+						<tr style="border-bottom:1px solid var(--border)">
+							<td style="padding:14px 20px">
+								<div style="display:flex;align-items:center;gap:12px">
+									${img
+										? `<img src="${escapeHtml(img)}" style="width:44px;height:44px;border-radius:8px;object-fit:cover;border:1px solid var(--border);flex-shrink:0">`
+										: `<div style="width:44px;height:44px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);display:grid;place-items:center;font-size:18px;flex-shrink:0">📦</div>`
+									}
+									<div>
+										<div style="font-weight:600;font-size:13px">${escapeHtml(name)}</div>
+										${productId ? `<div style="font-size:11px;color:var(--muted);font-family:'Space Mono',monospace;margin-top:2px">${escapeHtml(String(productId).slice(0, 8))}</div>` : ''}
+									</div>
+								</div>
+							</td>
+							<td style="padding:14px 20px;color:var(--muted);font-size:12px;font-family:'Space Mono',monospace">
+								${escapeHtml(sku || '—')}
+							</td>
+							<td style="padding:14px 20px;text-align:center">
+								<span style="background:var(--accent-dim);color:var(--accent);border:1px solid rgba(59,130,246,0.2);border-radius:6px;padding:3px 10px;font-weight:600;font-size:13px">${qty}</span>
+							</td>
+							<td style="padding:14px 20px;text-align:right;font-size:13px;color:var(--muted)">
+								${mrp
+									? `<span style="text-decoration:${hasSaving ? 'line-through' : 'none'}">₹${mrp.toLocaleString('en-IN')}</span>`
+									: '—'}
+							</td>
+							<td style="padding:14px 20px;text-align:right;font-size:13px;font-weight:500">
+								${unitPrice ? `₹${unitPrice.toLocaleString('en-IN')}` : '—'}
+								${hasSaving ? `<div style="font-size:10px;color:var(--green);margin-top:2px">Save ₹${(mrp - unitPrice).toLocaleString('en-IN')}</div>` : ''}
+							</td>
+							<td style="padding:14px 20px;text-align:right;font-family:'Space Mono',monospace;font-weight:700;font-size:14px">
+								₹${lineTotal.toLocaleString('en-IN')}
+							</td>
+						</tr>`;
+					}).join('')}
+				</tbody>
+				<tfoot>
+					<tr style="background:var(--surface2)">
+						<td colspan="5" style="padding:14px 20px;text-align:right;font-size:13px;font-weight:600;color:var(--muted)">Grand Total</td>
+						<td style="padding:14px 20px;text-align:right;font-family:'Space Mono',monospace;font-weight:700;font-size:16px;color:var(--yellow)">
+							₹${total.toLocaleString('en-IN')}
+						</td>
+					</tr>
+				</tfoot>
+			</table>
+		</div>`;
+}
+
+function closeCartViewModal() {
+	document.getElementById('cartViewModal').classList.remove('show');
+}
+
+function closeCartViewModalOnBg(e) {
+	if (e.target === document.getElementById('cartViewModal')) closeCartViewModal();
+}
+
+async function deleteUserCart(userId, userName) {
+	if (!userId) { alert('User id is missing'); return; }
+	if (!confirm(`Delete cart for ${userName}? This cannot be undone.`)) return;
+
+	try {
+		const res = await fetch(ADMIN_API.cart.deleteByUser(userId), {
+			method: 'DELETE',
+			headers: { 'Authorization': 'Bearer ' + token }
+		});
+		const responseText = await res.text();
+		if (!res.ok) throw new Error(parseApiError(responseText));
+
+		let message = `Cart deleted successfully for ${userName}`;
+		if (responseText) {
+			try {
+				const parsed = JSON.parse(responseText);
+				message = parsed?.message || parsed?.data || message;
+			} catch (_) { /* keep default */ }
+		}
+		alert(message);
 		await refreshCartAdminModal();
 	} catch (e) {
 		alert(e.message || 'Failed to delete cart');
@@ -1133,14 +1630,13 @@ let stockProductsFetched = false;
 let currentStockProductId = null;
 
 async function openStockInventoryModal() {
-    document.getElementById('stockInventoryModal').classList.add('show');
-    document.body.style.overflow = 'hidden';
-
-    if (!stockProductsFetched) {
-        await refreshStockInventoryModal();
-    } else {
-        renderStockProductsTable(stockFilteredProducts.length ? stockFilteredProducts : stockProducts);
-    }
+	document.getElementById('stockInventoryModal').classList.add('show');
+	document.body.style.overflow = 'hidden';
+	if (!stockProductsFetched) {
+		await refreshStockInventoryModal();
+	} else {
+		renderStockProductsTable(stockFilteredProducts.length ? stockFilteredProducts : stockProducts);
+	}
 }
 
 function closeStockInventoryModal() {
@@ -1149,19 +1645,16 @@ function closeStockInventoryModal() {
 }
 
 function closeStockInventoryModalOnBg(e) {
-	if (e.target === document.getElementById('stockInventoryModal')) {
-		closeStockInventoryModal();
-	}
+	if (e.target === document.getElementById('stockInventoryModal')) closeStockInventoryModal();
 }
 
 function showStockActionMessage(message, isError = false) {
 	const el = document.getElementById('stockActionMessage');
 	if (!el) return;
-
 	el.style.display = 'block';
 	el.textContent = message;
-	el.style.background = isError ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)';
-	el.style.border = isError ? '1px solid rgba(239, 68, 68, 0.25)' : '1px solid rgba(34, 197, 94, 0.25)';
+	el.style.background = isError ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)';
+	el.style.border = isError ? '1px solid rgba(239,68,68,0.25)' : '1px solid rgba(34,197,94,0.25)';
 	el.style.color = isError ? 'var(--red)' : 'var(--green)';
 }
 
@@ -1173,452 +1666,290 @@ function clearStockActionMessage() {
 }
 
 async function refreshStockInventoryModal() {
-    const tbody = document.getElementById('stockProductsTable');
-    if (tbody) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--muted)">Loading stock products...</td></tr>`;
-    }
+	const tbody = document.getElementById('stockProductsTable');
+	if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">Loading stock products...</td></tr>`;
+	clearStockActionMessage();
 
-    clearStockActionMessage();
+	try {
+		const res = await fetch(`${ADMIN_API.products.list}?page=0&size=200`, {
+			headers: { 'Authorization': 'Bearer ' + token }
+		});
+		if (!res.ok) throw new Error(parseApiError(await res.text()));
+		const raw     = await res.json();
+		const data    = unwrapApiResponse(raw);
+		const products = Array.isArray(data) ? data : (data?.content || []);
 
-    try {
-        const res = await fetch(`${ADMIN_API.products.list}?page=0&size=200`, {
-            headers: { 'Authorization': 'Bearer ' + token }
-        });
+		stockProducts = await Promise.all(products.map(async (p) => {
+			try {
+				const stockRes = await fetch(ADMIN_API.stocks.byProduct(p.id), {
+					headers: { 'Authorization': 'Bearer ' + token }
+				});
+				if (!stockRes.ok) return { ...p, quantityAvailable: p.availableQuantity ?? p.stock ?? 0, quantityReserved: 0 };
+				const stockRaw  = await stockRes.json();
+				const stockData = unwrapApiResponse(stockRaw) || stockRaw || {};
+				return {
+					...p,
+					quantityAvailable: stockData.quantityAvailable ?? stockData.availableQuantity ?? p.availableQuantity ?? p.stock ?? 0,
+					quantityReserved:  stockData.quantityReserved ?? stockData.reservedQuantity ?? 0
+				};
+			} catch {
+				return { ...p, quantityAvailable: p.availableQuantity ?? p.stock ?? 0, quantityReserved: 0 };
+			}
+		}));
 
-        if (!res.ok) throw new Error(parseApiError(await res.text()));
+		stockFilteredProducts = [...stockProducts];
+		stockProductsFetched  = true;
+		renderStockProductsTable(stockFilteredProducts);
 
-        const raw = await res.json();
-        const data = unwrapApiResponse(raw);
-        const products = Array.isArray(data) ? data : (data?.content || []);
-
-        stockProducts = await Promise.all(products.map(async (p) => {
-            try {
-                const stockRes = await fetch(ADMIN_API.stocks.byProduct(p.id), {
-                    headers: { 'Authorization': 'Bearer ' + token }
-                });
-
-                if (!stockRes.ok) {
-                    return {
-                        ...p,
-                        quantityAvailable: p.availableQuantity ?? p.stock ?? 0,
-                        quantityReserved: 0
-                    };
-                }
-
-                const stockRaw = await stockRes.json();
-                const stockData = unwrapApiResponse(stockRaw) || stockRaw || {};
-
-                return {
-                    ...p,
-                    quantityAvailable: stockData.quantityAvailable ?? stockData.availableQuantity ?? p.availableQuantity ?? p.stock ?? 0,
-                    quantityReserved: stockData.quantityReserved ?? stockData.reservedQuantity ?? 0
-                };
-            } catch {
-                return {
-                    ...p,
-                    quantityAvailable: p.availableQuantity ?? p.stock ?? 0,
-                    quantityReserved: 0
-                };
-            }
-        }));
-
-        stockFilteredProducts = [...stockProducts];
-        stockProductsFetched = true;
-
-        renderStockProductsTable(stockFilteredProducts);
-
-        const countEl = document.getElementById('modalStockCount');
-        if (countEl) {
-            countEl.textContent = `${stockFilteredProducts.length} products loaded for stock management`;
-        }
-    } catch (e) {
-        if (tbody) {
-            tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--red)">Failed to load stock products</td></tr>`;
-        }
-        showStockActionMessage(e.message || 'Failed to load stock data', true);
-    }
+		const countEl = document.getElementById('modalStockCount');
+		if (countEl) countEl.textContent = `${stockFilteredProducts.length} products loaded for stock management`;
+	} catch (e) {
+		if (tbody) tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--red)">Failed to load stock products</td></tr>`;
+		showStockActionMessage(e.message || 'Failed to load stock data', true);
+	}
 }
 
 function renderStockProductsTable(products) {
-    const tbody = document.getElementById('stockProductsTable');
-    if (!tbody) return;
+	const tbody = document.getElementById('stockProductsTable');
+	if (!tbody) return;
 
-    if (!products.length) {
-        tbody.innerHTML = `<tr><td colspan="6" style="text-align:center; padding:32px; color:var(--muted)">No products found</td></tr>`;
-        return;
-    }
+	if (!products.length) {
+		tbody.innerHTML = `<tr><td colspan="6" style="text-align:center;padding:32px;color:var(--muted)">No products found</td></tr>`;
+		return;
+	}
 
-    tbody.innerHTML = products.map(p => {
-        const safeName = String(p.name || 'Product')
-            .replace(/\\/g, '\\\\')
-            .replace(/'/g, "\\'");
-
-        return `
+	tbody.innerHTML = products.map(p => {
+		const safeName = String(p.name || 'Product').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+		return `
             <tr>
-                <td style="font-family:'Space Mono', monospace; font-size:11px; color:var(--muted)">
-                    ${escapeHtml(String(p.id || '').slice(0, 8))}
-                </td>
+                <td style="font-family:'Space Mono',monospace;font-size:11px;color:var(--muted)">${escapeHtml(String(p.id || '').slice(0, 8))}</td>
                 <td style="font-weight:500">${escapeHtml(p.name || '—')}</td>
                 <td style="color:var(--muted)">${escapeHtml(p.sku || '—')}</td>
-                <td>
-                    <span class="badge ${(Number(p.quantityAvailable || 0) <= 5) ? 'badge-yellow' : 'badge-green'}">
-                        ${Number(p.quantityAvailable || 0)}
-                    </span>
-                </td>
-                <td>
-                    <span class="badge badge-blue">${Number(p.quantityReserved || 0)}</span>
-                </td>
+                <td><span class="badge ${(Number(p.quantityAvailable || 0) <= 5) ? 'badge-yellow' : 'badge-green'}">${Number(p.quantityAvailable || 0)}</span></td>
+                <td><span class="badge badge-blue">${Number(p.quantityReserved || 0)}</span></td>
                 <td style="text-align:center">
-                    <button class="act" onclick="selectStockProduct('${p.id}', '${safeName}')">
-                        Manage
-                    </button>
+                    <button class="act" onclick="selectStockProduct('${p.id}', '${safeName}')">Manage</button>
                 </td>
             </tr>
         `;
-    }).join('');
+	}).join('');
 }
 
 function selectStockProduct(productId, productName) {
-    currentStockProductId = productId;
-
-    const hidden = document.getElementById('stockProductId');
-    const label = document.getElementById('selectedStockProductLabel');
-
-    if (hidden) hidden.value = productId;
-    if (label) label.textContent = `Selected product: ${productName}`;
-
-    clearStockActionMessage();
+	currentStockProductId = productId;
+	const hidden = document.getElementById('stockProductId');
+	const label  = document.getElementById('selectedStockProductLabel');
+	if (hidden) hidden.value = productId;
+	if (label)  label.textContent = `Selected product: ${productName}`;
+	clearStockActionMessage();
 }
 
 function filterStockProducts() {
-    const q = (document.getElementById('stockSearchInput').value || '').toLowerCase().trim();
-
-    if (!q) {
-        stockFilteredProducts = [...stockProducts];
-    } else {
-        stockFilteredProducts = stockProducts.filter(p =>
-            (p.name || '').toLowerCase().includes(q) ||
-            (p.sku || '').toLowerCase().includes(q) ||
-            String(p.id || '').toLowerCase().includes(q)
-        );
-    }
-
-    renderStockProductsTable(stockFilteredProducts);
-
-    const countEl = document.getElementById('modalStockCount');
-    if (countEl) {
-        countEl.textContent = `${stockFilteredProducts.length} of ${stockProducts.length} products`;
-    }
+	const q = (document.getElementById('stockSearchInput').value || '').toLowerCase().trim();
+	stockFilteredProducts = q
+		? stockProducts.filter(p =>
+			(p.name || '').toLowerCase().includes(q) ||
+			(p.sku || '').toLowerCase().includes(q) ||
+			String(p.id || '').toLowerCase().includes(q))
+		: [...stockProducts];
+	renderStockProductsTable(stockFilteredProducts);
+	const countEl = document.getElementById('modalStockCount');
+	if (countEl) countEl.textContent = `${stockFilteredProducts.length} of ${stockProducts.length} products`;
 }
 
 function clearStockFilters() {
-    document.getElementById('stockSearchInput').value = '';
-    stockFilteredProducts = [...stockProducts];
-    renderStockProductsTable(stockFilteredProducts);
-
-    const countEl = document.getElementById('modalStockCount');
-    if (countEl) {
-        countEl.textContent = `${stockFilteredProducts.length} products loaded for stock management`;
-    }
+	document.getElementById('stockSearchInput').value = '';
+	stockFilteredProducts = [...stockProducts];
+	renderStockProductsTable(stockFilteredProducts);
+	const countEl = document.getElementById('modalStockCount');
+	if (countEl) countEl.textContent = `${stockFilteredProducts.length} products loaded for stock management`;
 }
 
 function requireSelectedStockProduct() {
-    const productId = document.getElementById('stockProductId').value || currentStockProductId;
-    if (!productId) {
-        showStockActionMessage('Please click Manage on a product first', true);
-        return null;
-    }
-    return productId;
+	const productId = document.getElementById('stockProductId').value || currentStockProductId;
+	if (!productId) { showStockActionMessage('Please click Manage on a product first', true); return null; }
+	return productId;
 }
 
-function readStockQuantity() {
-	return Number(document.getElementById('stockQuantity').value || 0);
-}
+function readStockQuantity() { return Number(document.getElementById('stockQuantity').value || 0); }
+function readStockDelta()    { return Number(document.getElementById('stockDelta').value || 0); }
 
-function readStockDelta() {
-	return Number(document.getElementById('stockDelta').value || 0);
-}
-
+// BUG FIX: performStockAction now accepts correct HTTP method per call-site
 async function performStockAction(url, body, method = 'POST') {
-    const actorId = getActorId();
+	const actorId = getActorId();
+	if (!actorId) throw new Error('Actor ID not found in localStorage');
 
-    if (!actorId) {
-        throw new Error('Actor ID not found in localStorage');
-    }
-
-    const res = await fetch(url, {
-        method,
-        headers: {
-            'Authorization': 'Bearer ' + token,
-            'Content-Type': 'application/json',
-            'X-Actor-Id': actorId
-        },
-        body: JSON.stringify(body)
-    });
-
-    if (!res.ok) {
-        throw new Error(parseApiError(await res.text()));
-    }
-
-    return res;
+	const res = await fetch(url, {
+		method,
+		headers: {
+			'Authorization': 'Bearer ' + token,
+			'Content-Type': 'application/json',
+			'X-Actor-Id': actorId
+		},
+		body: JSON.stringify(body)
+	});
+	if (!res.ok) throw new Error(parseApiError(await res.text()));
+	return res;
 }
 
 async function addStock() {
-    const productId = requireSelectedStockProduct();
-    if (!productId) return;
-
-    const quantity = readStockQuantity();
-    const reason = document.getElementById('stockReason').value.trim();
-
-    if (quantity < 1) {
-        showStockActionMessage('Quantity must be at least 1', true);
-        return;
-    }
-
-    try {
-        await performStockAction(ADMIN_API.stocks.add(productId), { quantity, reason }, 'POST');
-        showStockActionMessage('Stock added successfully');
-        await refreshStockInventoryModal();
-        selectStockProduct(productId, document.getElementById('selectedStockProductLabel').textContent.replace('Selected product: ', ''));
-    } catch (e) {
-        showStockActionMessage(e.message || 'Failed to add stock', true);
-    }
+	const productId = requireSelectedStockProduct();
+	if (!productId) return;
+	const quantity = readStockQuantity();
+	const reason   = document.getElementById('stockReason').value.trim();
+	if (quantity < 1) { showStockActionMessage('Quantity must be at least 1', true); return; }
+	try {
+		await performStockAction(ADMIN_API.stocks.add(productId), { quantity, reason }, 'POST');
+		showStockActionMessage('Stock added successfully');
+		await refreshStockInventoryModal();
+		const label = document.getElementById('selectedStockProductLabel');
+		if (label && label.textContent.includes('Selected product:')) {
+			selectStockProduct(productId, label.textContent.replace('Selected product: ', ''));
+		}
+	} catch (e) { showStockActionMessage(e.message || 'Failed to add stock', true); }
 }
 
 async function adjustStock() {
-    const productId = requireSelectedStockProduct();
-    if (!productId) return;
-
-    const delta = readStockDelta();
-    const reason = document.getElementById('stockReason').value.trim();
-
-    if (!delta) {
-        showStockActionMessage('Delta is required and cannot be 0', true);
-        return;
-    }
-
-    try {
-        await performStockAction(ADMIN_API.stocks.adjust(productId), { delta, reason }, 'PATCH');
-        showStockActionMessage('Stock adjusted successfully');
-        await refreshStockInventoryModal();
-    } catch (e) {
-        showStockActionMessage(e.message || 'Failed to adjust stock', true);
-    }
+	const productId = requireSelectedStockProduct();
+	if (!productId) return;
+	const delta  = readStockDelta();
+	const reason = document.getElementById('stockReason').value.trim();
+	if (!delta) { showStockActionMessage('Delta is required and cannot be 0', true); return; }
+	try {
+		// BUG FIX: adjust uses PATCH not POST
+		await performStockAction(ADMIN_API.stocks.adjust(productId), { delta, reason }, 'PATCH');
+		showStockActionMessage('Stock adjusted successfully');
+		await refreshStockInventoryModal();
+	} catch (e) { showStockActionMessage(e.message || 'Failed to adjust stock', true); }
 }
 
 async function reserveStock() {
-    const productId = requireSelectedStockProduct();
-    if (!productId) return;
-
-    const quantity = readStockQuantity();
-    const orderId = document.getElementById('stockOrderId').value.trim();
-
-    if (quantity < 1) {
-        showStockActionMessage('Quantity must be at least 1', true);
-        return;
-    }
-    if (!orderId) {
-        showStockActionMessage('Order ID is required for reserve', true);
-        return;
-    }
-
-    try {
-        await performStockAction(ADMIN_API.stocks.reserve(productId), { quantity, orderId }, 'POST');
-        showStockActionMessage('Stock reserved successfully');
-        await refreshStockInventoryModal();
-    } catch (e) {
-        showStockActionMessage(e.message || 'Failed to reserve stock', true);
-    }
+	const productId = requireSelectedStockProduct();
+	if (!productId) return;
+	const quantity = readStockQuantity();
+	const orderId  = document.getElementById('stockOrderId').value.trim();
+	if (quantity < 1) { showStockActionMessage('Quantity must be at least 1', true); return; }
+	if (!orderId)     { showStockActionMessage('Order ID is required for reserve', true); return; }
+	try {
+		await performStockAction(ADMIN_API.stocks.reserve(productId), { quantity, orderId }, 'POST');
+		showStockActionMessage('Stock reserved successfully');
+		await refreshStockInventoryModal();
+	} catch (e) { showStockActionMessage(e.message || 'Failed to reserve stock', true); }
 }
 
 async function releaseReservedStock() {
-    const productId = requireSelectedStockProduct();
-    if (!productId) return;
-
-    const quantity = readStockQuantity();
-    const orderId = document.getElementById('stockOrderId').value.trim();
-
-    if (quantity < 1) {
-        showStockActionMessage('Quantity must be at least 1', true);
-        return;
-    }
-    if (!orderId) {
-        showStockActionMessage('Order ID is required for release', true);
-        return;
-    }
-
-    try {
-        await performStockAction(ADMIN_API.stocks.release(productId), { quantity, orderId }, 'POST');
-        showStockActionMessage('Reserved stock released successfully');
-        await refreshStockInventoryModal();
-    } catch (e) {
-        showStockActionMessage(e.message || 'Failed to release reserved stock', true);
-    }
+	const productId = requireSelectedStockProduct();
+	if (!productId) return;
+	const quantity = readStockQuantity();
+	const orderId  = document.getElementById('stockOrderId').value.trim();
+	if (quantity < 1) { showStockActionMessage('Quantity must be at least 1', true); return; }
+	if (!orderId)     { showStockActionMessage('Order ID is required for release', true); return; }
+	try {
+		await performStockAction(ADMIN_API.stocks.release(productId), { quantity, orderId }, 'POST');
+		showStockActionMessage('Reserved stock released successfully');
+		await refreshStockInventoryModal();
+	} catch (e) { showStockActionMessage(e.message || 'Failed to release reserved stock', true); }
 }
 
 async function confirmStockSale() {
-    const productId = requireSelectedStockProduct();
-    if (!productId) return;
-
-    const quantity = readStockQuantity();
-    const orderId = document.getElementById('stockOrderId').value.trim();
-
-    if (quantity < 1) {
-        showStockActionMessage('Quantity must be at least 1', true);
-        return;
-    }
-    if (!orderId) {
-        showStockActionMessage('Order ID is required for confirm sale', true);
-        return;
-    }
-
-    try {
-        await performStockAction(ADMIN_API.stocks.confirmSale(productId), { quantity, orderId }, 'POST');
-        showStockActionMessage('Stock sale confirmed successfully');
-        await refreshStockInventoryModal();
-    } catch (e) {
-        showStockActionMessage(e.message || 'Failed to confirm stock sale', true);
-    }
+	const productId = requireSelectedStockProduct();
+	if (!productId) return;
+	const quantity = readStockQuantity();
+	const orderId  = document.getElementById('stockOrderId').value.trim();
+	if (quantity < 1) { showStockActionMessage('Quantity must be at least 1', true); return; }
+	if (!orderId)     { showStockActionMessage('Order ID is required for confirm sale', true); return; }
+	try {
+		await performStockAction(ADMIN_API.stocks.confirmSale(productId), { quantity, orderId }, 'POST');
+		showStockActionMessage('Stock sale confirmed successfully');
+		await refreshStockInventoryModal();
+	} catch (e) { showStockActionMessage(e.message || 'Failed to confirm stock sale', true); }
 }
 
 async function restockFromReturn() {
-    const productId = requireSelectedStockProduct();
-    if (!productId) return;
-
-    const quantity = readStockQuantity();
-    const returnRequestId = document.getElementById('stockReturnRequestId').value.trim();
-
-    if (quantity < 1) {
-        showStockActionMessage('Quantity must be at least 1', true);
-        return;
-    }
-    if (!returnRequestId) {
-        showStockActionMessage('Return Request ID is required for restock', true);
-        return;
-    }
-
-    try {
-        await performStockAction(ADMIN_API.stocks.restockReturn(productId), { quantity, returnRequestId }, 'POST');
-        showStockActionMessage('Returned stock restocked successfully');
-        await refreshStockInventoryModal();
-    } catch (e) {
-        showStockActionMessage(e.message || 'Failed to restock from return', true);
-    }
+	const productId       = requireSelectedStockProduct();
+	if (!productId) return;
+	const quantity        = readStockQuantity();
+	const returnRequestId = document.getElementById('stockReturnRequestId').value.trim();
+	if (quantity < 1)        { showStockActionMessage('Quantity must be at least 1', true); return; }
+	if (!returnRequestId)    { showStockActionMessage('Return Request ID is required for restock', true); return; }
+	try {
+		await performStockAction(ADMIN_API.stocks.restockReturn(productId), { quantity, returnRequestId }, 'POST');
+		showStockActionMessage('Returned stock restocked successfully');
+		await refreshStockInventoryModal();
+	} catch (e) { showStockActionMessage(e.message || 'Failed to restock from return', true); }
 }
 
 async function loadLowStockProducts() {
-    try {
-        const res = await fetch(ADMIN_API.stocks.lowStock, {
-            headers: { 'Authorization': 'Bearer ' + token }
-        });
+	try {
+		const res = await fetch(ADMIN_API.stocks.lowStock, {
+			headers: { 'Authorization': 'Bearer ' + token }
+		});
+		if (!res.ok) throw new Error(parseApiError(await res.text()));
+		const raw  = await res.json();
+		const data = unwrapApiResponse(raw);
+		const rows = Array.isArray(data) ? data : (data?.content || []);
 
-        if (!res.ok) {
-            throw new Error(parseApiError(await res.text()));
-        }
+		stockFilteredProducts = rows.map(p => ({
+			...p,
+			id:                p.productId || p.id,
+			name:              p.productName || p.name || 'Product',
+			sku:               p.sku || '',
+			quantityAvailable: p.quantityAvailable ?? p.availableQuantity ?? p.stock ?? 0,
+			quantityReserved:  p.quantityReserved ?? 0
+		}));
 
-        const raw = await res.json();
-        const data = unwrapApiResponse(raw);
-        const rows = Array.isArray(data) ? data : (data?.content || []);
-
-        stockFilteredProducts = rows.map(p => ({
-            ...p,
-            id: p.productId || p.id,
-            name: p.productName || p.name || 'Product',
-            sku: p.sku || '',
-            quantityAvailable: p.quantityAvailable ?? p.availableQuantity ?? p.stock ?? 0,
-            quantityReserved: p.quantityReserved ?? 0
-        }));
-
-        renderStockProductsTable(stockFilteredProducts);
-
-        const countEl = document.getElementById('modalStockCount');
-        if (countEl) {
-            countEl.textContent = `${stockFilteredProducts.length} low-stock products`;
-        }
-
-        showStockActionMessage('Low-stock products loaded');
-    } catch (e) {
-        showStockActionMessage(e.message || 'Failed to load low-stock products', true);
-    }
+		renderStockProductsTable(stockFilteredProducts);
+		const countEl = document.getElementById('modalStockCount');
+		if (countEl) countEl.textContent = `${stockFilteredProducts.length} low-stock products`;
+		showStockActionMessage('Low-stock products loaded');
+	} catch (e) { showStockActionMessage(e.message || 'Failed to load low-stock products', true); }
 }
 
 async function searchStockTransactions() {
-    const productId = requireSelectedStockProduct();
-    if (!productId) return;
+	const productId = requireSelectedStockProduct();
+	if (!productId) return;
+	try {
+		const orderId         = document.getElementById('stockOrderId').value.trim();
+		const returnRequestId = document.getElementById('stockReturnRequestId').value.trim();
+		const payload = { orderId: orderId || null, returnRequestId: returnRequestId || null };
 
-    try {
-        const orderId = document.getElementById('stockOrderId').value.trim();
-        const returnRequestId = document.getElementById('stockReturnRequestId').value.trim();
-
-        const payload = {
-            orderId: orderId || null,
-            returnRequestId: returnRequestId || null
-        };
-
-        const res = await fetch(ADMIN_API.stocks.searchTransactions(productId), {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Bearer ' + token,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(payload)
-        });
-
-        if (!res.ok) {
-            throw new Error(parseApiError(await res.text()));
-        }
-
-        const raw = await res.json();
-        const data = unwrapApiResponse(raw);
-        stockTransactions = Array.isArray(data) ? data : (data?.content || []);
-
-        renderStockTransactions(stockTransactions);
-        showStockActionMessage('Stock transactions loaded');
-    } catch (e) {
-        showStockActionMessage(e.message || 'Failed to search stock transactions', true);
-    }
+		const res = await fetch(ADMIN_API.stocks.searchTransactions(productId), {
+			method: 'POST',
+			headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+			body: JSON.stringify(payload)
+		});
+		if (!res.ok) throw new Error(parseApiError(await res.text()));
+		const raw  = await res.json();
+		const data = unwrapApiResponse(raw);
+		stockTransactions = Array.isArray(data) ? data : (data?.content || []);
+		renderStockTransactions(stockTransactions);
+		showStockActionMessage('Stock transactions loaded');
+	} catch (e) { showStockActionMessage(e.message || 'Failed to search stock transactions', true); }
 }
 
 function renderStockTransactions(rows) {
 	const panel = document.getElementById('stockTransactionsPanel');
 	if (!panel) return;
-
-	if (!rows.length) {
-		panel.innerHTML = `No stock transactions found.`;
-		return;
-	}
-
+	if (!rows.length) { panel.innerHTML = `No stock transactions found.`; return; }
 	panel.innerHTML = rows.map(tx => {
-		const createdAt = tx.createdAt
-			? new Date(tx.createdAt).toLocaleString('en-IN')
-			: '—';
-
+		const createdAt = tx.createdAt ? new Date(tx.createdAt).toLocaleString('en-IN') : '—';
 		return `
-            <div style="padding:10px 0; border-bottom:1px solid var(--border);">
-                <div style="display:flex; justify-content:space-between; gap:12px; margin-bottom:4px;">
+            <div style="padding:10px 0;border-bottom:1px solid var(--border)">
+                <div style="display:flex;justify-content:space-between;gap:12px;margin-bottom:4px">
                     <strong style="color:var(--text)">${escapeHtml(tx.type || '—')}</strong>
                     <span style="color:var(--muted)">${createdAt}</span>
                 </div>
-                <div style="color:var(--muted); margin-bottom:4px;">
-                    Delta: ${tx.quantityDelta ?? 0} |
-                    Before: ${tx.quantityBefore ?? 0} |
-                    After: ${tx.quantityAfter ?? 0}
+                <div style="color:var(--muted);margin-bottom:4px">
+                    Delta: ${tx.quantityDelta ?? 0} | Before: ${tx.quantityBefore ?? 0} | After: ${tx.quantityAfter ?? 0}
                 </div>
-                <div style="color:var(--muted); margin-bottom:4px;">
-                    Order: ${escapeHtml(tx.orderId || '—')} |
-                    Return: ${escapeHtml(tx.returnRequestId || '—')}
+                <div style="color:var(--muted);margin-bottom:4px">
+                    Order: ${escapeHtml(tx.orderId || '—')} | Return: ${escapeHtml(tx.returnRequestId || '—')}
                 </div>
-                <div style="color:var(--muted);">
-                    Reason: ${escapeHtml(tx.reason || '—')}
-                </div>
+                <div style="color:var(--muted)">Reason: ${escapeHtml(tx.reason || '—')}</div>
             </div>
         `;
 	}).join('');
 }
-
-
-
-
 
 // ════════════════════════════════════════════════════════════════════════════
 //  PRODUCTS
@@ -1635,21 +1966,21 @@ function normalizeProduct(product) {
 	if (!product) return product;
 	return {
 		...product,
-		id: product.id || '',
-		name: product.name || '—',
-		sku: product.sku || '—',
-		barcode: product.barcode || '',
-		description: product.description || '',
-		categoryId: product.categoryId || '',
-		category: product.categoryName || product.category || '—',
-		mrp: product.mrp ?? null,
-		sellingPrice: product.sellingPrice ?? product.price ?? null,
-		taxPercent: product.taxPercent ?? null,
-		unit: product.unit || '',
-		unitValue: product.unitValue ?? null,
-		images: Array.isArray(product.images) ? product.images : [],
-		isActive: product.isActive !== false,
-		isDeleted: product.isDeleted === true || product.deleted === true || !!product.deletedAt,
+		id:                product.id || '',
+		name:              product.name || '—',
+		sku:               product.sku || '—',
+		barcode:           product.barcode || '',
+		description:       product.description || '',
+		categoryId:        product.categoryId || '',
+		category:          product.categoryName || product.category || '—',
+		mrp:               product.mrp ?? null,
+		sellingPrice:      product.sellingPrice ?? product.price ?? null,
+		taxPercent:        product.taxPercent ?? null,
+		unit:              product.unit || '',
+		unitValue:         product.unitValue ?? null,
+		images:            Array.isArray(product.images) ? product.images : [],
+		isActive:          product.isActive !== false,
+		isDeleted:         product.isDeleted === true || product.deleted === true || !!product.deletedAt,
 		availableQuantity: product.availableQuantity ?? product.stock ?? 0
 	};
 }
@@ -1661,7 +1992,7 @@ async function fetchProducts() {
 		});
 		if (res.status === 401) { localStorage.clear(); window.location.href = 'login.html'; return null; }
 		if (!res.ok) throw new Error(parseApiError(await res.text()));
-		const raw = await res.json();
+		const raw  = await res.json();
 		const data = unwrapApiResponse(raw);
 		const rows = Array.isArray(data) ? data : (data?.content || []);
 		return rows.map(normalizeProduct);
@@ -1675,13 +2006,13 @@ async function fetchProducts() {
 function categoryEmoji(cat) {
 	if (!cat) return '📦';
 	const c = String(cat).toLowerCase();
-	if (c.includes('electron')) return '💻';
+	if (c.includes('electron'))              return '💻';
 	if (c.includes('fashion') || c.includes('cloth')) return '👔';
-	if (c.includes('home') || c.includes('furni')) return '🛋️';
-	if (c.includes('sport')) return '⚽';
-	if (c.includes('food') || c.includes('kitchen')) return '☕';
-	if (c.includes('book')) return '📚';
-	if (c.includes('phone') || c.includes('mobile')) return '📱';
+	if (c.includes('home') || c.includes('furni'))    return '🛋️';
+	if (c.includes('sport'))                 return '⚽';
+	if (c.includes('food') || c.includes('kitchen'))  return '☕';
+	if (c.includes('book'))                  return '📚';
+	if (c.includes('phone') || c.includes('mobile'))  return '📱';
 	return '📦';
 }
 
@@ -1727,14 +2058,14 @@ function renderProductsTable(products) {
 		return;
 	}
 	tbody.innerHTML = products.map(p => {
-		const stock = p.availableQuantity ?? 0;
-		const image = Array.isArray(p.images) && p.images.length ? p.images[0] : '';
-		const isActive = p.isActive !== false;
+		const stock   = p.availableQuantity ?? 0;
+		const image   = Array.isArray(p.images) && p.images.length ? p.images[0] : '';
+		const isActive  = p.isActive !== false;
 		const isDeleted = p.isDeleted === true;
 		let statusCls = 'badge-green', statusTxt = 'Active';
-		if (isDeleted) { statusCls = 'badge-red'; statusTxt = 'Deleted'; }
-		else if (!isActive) { statusCls = 'badge-yellow'; statusTxt = 'Inactive'; }
-		else if (stock <= 0) { statusCls = 'badge-yellow'; statusTxt = 'Out of Stock'; }
+		if (isDeleted)        { statusCls = 'badge-red';    statusTxt = 'Deleted'; }
+		else if (!isActive)   { statusCls = 'badge-yellow'; statusTxt = 'Inactive'; }
+		else if (stock <= 0)  { statusCls = 'badge-yellow'; statusTxt = 'Out of Stock'; }
 		const actions = isDeleted
 			? `<div class="action-btns" style="justify-content:center">
                  <button class="act" onclick="restoreProduct('${p.id}')">Restore</button>
@@ -1763,7 +2094,7 @@ function renderProductsTable(products) {
 }
 
 function populateCategoryFilter(products) {
-	const sel = document.getElementById('categoryFilter');
+	const sel     = document.getElementById('categoryFilter');
 	const current = sel.value;
 	const localCats = [...new Set((products || []).map(p => p.categoryId || '').filter(Boolean))];
 	sel.innerHTML = `<option value="">All Categories</option>` +
@@ -1774,10 +2105,10 @@ function populateCategoryFilter(products) {
 }
 
 function filterProducts() {
-	const q = (document.getElementById('productSearch').value || '').trim().toLowerCase();
+	const q   = (document.getElementById('productSearch').value || '').trim().toLowerCase();
 	const cat = document.getElementById('categoryFilter').value;
 	let results = [...allProducts];
-	if (q) results = results.filter(p => (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
+	if (q)   results = results.filter(p => (p.name || '').toLowerCase().includes(q) || (p.sku || '').toLowerCase().includes(q));
 	if (cat) results = results.filter(p => String(p.categoryId || '') === String(cat));
 	renderProductsTable(results);
 	document.getElementById('modalProductCount').textContent = `${results.length} of ${allProducts.length} products`;
@@ -1791,17 +2122,17 @@ function clearProductFilters() {
 }
 
 // ── Product image state ───────────────────────────────────────────────────────
-let selectedProductFiles = [];
-let productExistingImages = [];
-let productUploadedImages = [];
+let selectedProductFiles   = [];
+let productExistingImages  = [];
+let productUploadedImages  = [];
 
 function setProductUploadState(icon, textLabel, isBusy = false) {
 	const iconEl = document.getElementById('productUploadIcon');
 	const textEl = document.getElementById('productUploadText');
-	const area = document.getElementById('productImgUploadArea');
+	const area   = document.getElementById('productImgUploadArea');
 	if (iconEl) iconEl.textContent = icon;
 	if (textEl) textEl.textContent = textLabel;
-	if (area) area.style.opacity = isBusy ? '0.7' : '1';
+	if (area)   area.style.opacity = isBusy ? '0.7' : '1';
 }
 
 function syncProductUploadedImagesField() {
@@ -1821,9 +2152,9 @@ function resetProductImageState() {
 }
 
 function removeProductImage(type, index) {
-	if (type === 'existing') productExistingImages.splice(index, 1);
-	else if (type === 'uploaded') { productUploadedImages.splice(index, 1); syncProductUploadedImagesField(); }
-	else if (type === 'selected') { selectedProductFiles.splice(index, 1); const i = document.getElementById('pf_imageFiles'); if (i) i.value = ''; }
+	if (type === 'existing')       productExistingImages.splice(index, 1);
+	else if (type === 'uploaded')  { productUploadedImages.splice(index, 1); syncProductUploadedImagesField(); }
+	else if (type === 'selected')  { selectedProductFiles.splice(index, 1); const i = document.getElementById('pf_imageFiles'); if (i) i.value = ''; }
 	renderProductImagePreview();
 }
 
@@ -1835,17 +2166,17 @@ function handleProductFileSelect(input) {
 }
 
 function renderProductImagePreview() {
-	const wrap = document.getElementById('productImagePreviewWrap');
-	const grid = document.getElementById('productImagePreviewGrid');
-	const count = document.getElementById('productImageCount');
-	const nameWrap = document.getElementById('productSelectedFileName');
-	const nameText = document.getElementById('productFileNameText');
+	const wrap      = document.getElementById('productImagePreviewWrap');
+	const grid      = document.getElementById('productImagePreviewGrid');
+	const count     = document.getElementById('productImageCount');
+	const nameWrap  = document.getElementById('productSelectedFileName');
+	const nameText  = document.getElementById('productFileNameText');
 	if (!wrap || !grid || !count) return;
 
 	const selectedNames = selectedProductFiles.map(f => f.name);
 	if (nameWrap && nameText) {
 		if (selectedNames.length) { nameWrap.style.display = 'block'; nameText.textContent = selectedNames.join(', '); }
-		else { nameWrap.style.display = 'none'; nameText.textContent = ''; }
+		else                       { nameWrap.style.display = 'none';  nameText.textContent = ''; }
 	}
 
 	const existingHtml = productExistingImages.map((url, i) =>
@@ -1889,7 +2220,7 @@ async function uploadProductImagesIfNeeded() {
 			try { const err = await res.json(); msg = err?.message || err?.error || JSON.stringify(err); } catch { msg = await res.text() || msg; }
 			throw new Error(msg);
 		}
-		const data = await res.json();
+		const data     = await res.json();
 		const imageUrl = data?.imageUrl || data?.data?.imageUrl;
 		if (!imageUrl) throw new Error('No image URL returned from upload API');
 		productUploadedImages.push(imageUrl);
@@ -1915,7 +2246,7 @@ function openProductForm() {
 	editingProductId = null;
 	document.getElementById('formModalTitle').textContent = 'Add Product_';
 	document.getElementById('formBtnText').textContent = 'Add Product';
-	['pf_name', 'pf_sku', 'pf_barcode', 'pf_description', 'pf_mrp', 'pf_sellingPrice', 'pf_taxPercent', 'pf_unitValue'].forEach(id => {
+	['pf_name','pf_sku','pf_barcode','pf_description','pf_mrp','pf_sellingPrice','pf_taxPercent','pf_unitValue'].forEach(id => {
 		const el = document.getElementById(id); if (el) el.value = '';
 	});
 	document.getElementById('pf_categoryId').value = '';
@@ -1933,15 +2264,15 @@ async function openEditForm(productId) {
 	editingProductId = productId;
 	document.getElementById('formModalTitle').textContent = 'Edit Product_';
 	document.getElementById('formBtnText').textContent = 'Save Changes';
-	document.getElementById('pf_name').value = p.name || '';
-	document.getElementById('pf_sku').value = p.sku || '';
-	document.getElementById('pf_barcode').value = p.barcode || '';
+	document.getElementById('pf_name').value        = p.name || '';
+	document.getElementById('pf_sku').value         = p.sku || '';
+	document.getElementById('pf_barcode').value     = p.barcode || '';
 	document.getElementById('pf_description').value = p.description || '';
-	document.getElementById('pf_mrp').value = p.mrp ?? '';
+	document.getElementById('pf_mrp').value         = p.mrp ?? '';
 	document.getElementById('pf_sellingPrice').value = p.sellingPrice ?? '';
-	document.getElementById('pf_taxPercent').value = p.taxPercent ?? '';
-	document.getElementById('pf_unitValue').value = p.unitValue ?? '';
-	document.getElementById('pf_isActive').value = String(p.isActive !== false);
+	document.getElementById('pf_taxPercent').value  = p.taxPercent ?? '';
+	document.getElementById('pf_unitValue').value   = p.unitValue ?? '';
+	document.getElementById('pf_isActive').value    = String(p.isActive !== false);
 	document.getElementById('formError').style.display = 'none';
 	await populateProductCategorySelect(p.categoryId || '');
 	populateUnitSelect(p.unit || '');
@@ -1961,28 +2292,27 @@ function closeFormModalOnBg(e) {
 }
 
 async function submitProductForm() {
-	const name = document.getElementById('pf_name').value.trim();
-	const sku = document.getElementById('pf_sku').value.trim();
-	const barcode = document.getElementById('pf_barcode').value.trim();
+	const name        = document.getElementById('pf_name').value.trim();
+	const sku         = document.getElementById('pf_sku').value.trim();
+	const barcode     = document.getElementById('pf_barcode').value.trim();
 	const description = document.getElementById('pf_description').value.trim();
-	const categoryId = document.getElementById('pf_categoryId').value;
-	const unit = document.getElementById('pf_unit').value;
-	const mrpRaw = document.getElementById('pf_mrp').value;
-	const sellingRaw = document.getElementById('pf_sellingPrice').value;
-	const taxRaw = document.getElementById('pf_taxPercent').value;
+	const categoryId  = document.getElementById('pf_categoryId').value;
+	const unit        = document.getElementById('pf_unit').value;
+	const mrpRaw      = document.getElementById('pf_mrp').value;
+	const sellingRaw  = document.getElementById('pf_sellingPrice').value;
+	const taxRaw      = document.getElementById('pf_taxPercent').value;
 	const unitValueRaw = document.getElementById('pf_unitValue').value;
-	const isActive = document.getElementById('pf_isActive').value === 'true';
+	const isActive    = document.getElementById('pf_isActive').value === 'true';
 
-	const errEl = document.getElementById('formError');
-	const btn = document.getElementById('formSubmitBtn');
+	const errEl  = document.getElementById('formError');
+	const btn    = document.getElementById('formSubmitBtn');
 	const isEdit = editingProductId !== null;
 
 	errEl.style.display = 'none';
-
-	if (!name) { errEl.textContent = 'Product name is required.'; errEl.style.display = 'block'; return; }
-	if (!sku) { errEl.textContent = 'SKU is required.'; errEl.style.display = 'block'; return; }
-	if (!categoryId) { errEl.textContent = 'Category is required.'; errEl.style.display = 'block'; return; }
-	if (!unit) { errEl.textContent = 'Unit is required.'; errEl.style.display = 'block'; return; }
+	if (!name)       { errEl.textContent = 'Product name is required.'; errEl.style.display = 'block'; return; }
+	if (!sku)        { errEl.textContent = 'SKU is required.';          errEl.style.display = 'block'; return; }
+	if (!categoryId) { errEl.textContent = 'Category is required.';     errEl.style.display = 'block'; return; }
+	if (!unit)       { errEl.textContent = 'Unit is required.';         errEl.style.display = 'block'; return; }
 
 	const actorId = getActorId();
 	if (!actorId) { errEl.textContent = 'Actor ID missing — please log in again.'; errEl.style.display = 'block'; return; }
@@ -1994,33 +2324,28 @@ async function submitProductForm() {
 		await uploadProductImagesIfNeeded();
 		const images = getEffectiveProductImages();
 		if (!isEdit && images.length < 1) throw new Error('Please upload at least 1 product image.');
-		if (images.length > 10) throw new Error('Maximum 10 images allowed.');
+		if (images.length > 10)           throw new Error('Maximum 10 images allowed.');
 
 		const payload = {
 			name,
-			description: description || null,
+			description:  description || null,
 			sku,
-			barcode: barcode || null,
-			mrp: mrpRaw === '' ? null : Number(mrpRaw),
-			sellingPrice: sellingRaw === '' ? null : Number(sellingRaw),
-			taxPercent: taxRaw === '' ? null : Number(taxRaw),
+			barcode:      barcode || null,
+			mrp:          mrpRaw === ''       ? null : Number(mrpRaw),
+			sellingPrice: sellingRaw === ''   ? null : Number(sellingRaw),
+			taxPercent:   taxRaw === ''       ? null : Number(taxRaw),
 			unit,
-			unitValue: unitValueRaw === '' ? null : Number(unitValueRaw),
+			unitValue:    unitValueRaw === '' ? null : Number(unitValueRaw),
 			images,
 			isActive,
 			categoryId
 		};
 
-		const url = isEdit ? ADMIN_API.products.update(editingProductId) : ADMIN_API.products.create;
+		const url    = isEdit ? ADMIN_API.products.update(editingProductId) : ADMIN_API.products.create;
 		const method = isEdit ? 'PUT' : 'POST';
-
-		const res = await fetch(url, {
+		const res    = await fetch(url, {
 			method,
-			headers: {
-				'Authorization': 'Bearer ' + token,
-				'Content-Type': 'application/json',
-				'X-Actor-Id': actorId
-			},
+			headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'X-Actor-Id': actorId },
 			body: JSON.stringify(payload)
 		});
 		if (!res.ok) throw new Error(parseApiError(await res.text()));
@@ -2090,8 +2415,8 @@ function closeBulkPriceModalOnBg(e) {
 
 function addBulkPriceRow(productId = '', mrp = '', sellingPrice = '') {
 	const container = document.getElementById('bulkPriceRows');
-	const rowId = `bpr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
-	const div = document.createElement('div');
+	const rowId     = `bpr_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+	const div       = document.createElement('div');
 	div.id = rowId;
 	div.style.cssText = 'display:grid;grid-template-columns:2fr 1fr 1fr auto;gap:10px;align-items:center;margin-bottom:10px';
 	div.innerHTML = `
@@ -2112,8 +2437,8 @@ function addBulkPriceRow(productId = '', mrp = '', sellingPrice = '') {
 }
 
 async function submitBulkPrices() {
-	const errEl = document.getElementById('bulkPriceError');
-	const btn = document.getElementById('bulkPriceSubmitBtn');
+	const errEl   = document.getElementById('bulkPriceError');
+	const btn     = document.getElementById('bulkPriceSubmitBtn');
 	const actorId = getActorId();
 	errEl.style.display = 'none';
 
@@ -2125,33 +2450,28 @@ async function submitBulkPrices() {
 	const items = [];
 	let hasError = false;
 	rows.forEach(row => {
-		const productId = row.querySelector('.bpr-product')?.value;
-		const mrpVal = row.querySelector('.bpr-mrp')?.value;
+		const productId  = row.querySelector('.bpr-product')?.value;
+		const mrpVal     = row.querySelector('.bpr-mrp')?.value;
 		const sellingVal = row.querySelector('.bpr-selling')?.value;
 		if (!productId) { hasError = true; return; }
 		const item = { productId };
-		if (mrpVal !== '') item.mrp = Number(mrpVal);
+		if (mrpVal !== '')     item.mrp = Number(mrpVal);
 		if (sellingVal !== '') item.sellingPrice = Number(sellingVal);
 		items.push(item);
 	});
 
-	if (hasError) { errEl.textContent = 'Please select a product for every row.'; errEl.style.display = 'block'; return; }
-	if (!items.length) { errEl.textContent = 'No valid rows to submit.'; errEl.style.display = 'block'; return; }
+	if (hasError)   { errEl.textContent = 'Please select a product for every row.'; errEl.style.display = 'block'; return; }
+	if (!items.length) { errEl.textContent = 'No valid rows to submit.';            errEl.style.display = 'block'; return; }
 
 	btn.disabled = true; btn.textContent = 'Updating...';
 
 	try {
 		const res = await fetch(ADMIN_API.products.bulkPriceUpdate, {
 			method: 'PUT',
-			headers: {
-				'Authorization': 'Bearer ' + token,
-				'Content-Type': 'application/json',
-				'X-Actor-Id': actorId
-			},
+			headers: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json', 'X-Actor-Id': actorId },
 			body: JSON.stringify(items)
 		});
 		if (!res.ok) throw new Error(parseApiError(await res.text()));
-
 		const fresh = await fetchProducts();
 		if (fresh) { allProducts = fresh; productsFetched = true; }
 		closeBulkPriceModal();
@@ -2182,7 +2502,7 @@ function closeDeleteModalOnBg(e) {
 
 async function confirmDelete() {
 	if (!deletingProductId) return;
-	const btn = document.getElementById('confirmDeleteBtn');
+	const btn     = document.getElementById('confirmDeleteBtn');
 	const actorId = getActorId();
 	if (!actorId) { alert('Missing actor id — please log in again.'); return; }
 	btn.disabled = true; btn.textContent = 'Deleting...';

@@ -30,7 +30,8 @@ public class ProductServiceImpl implements ProductService {
 	private final CategoryRepository categoryRepository;
 	private final StockRepository stockRepository;
 
-	public ProductServiceImpl(ProductRepository productRepository, CategoryRepository categoryRepository,
+	public ProductServiceImpl(ProductRepository productRepository,
+			CategoryRepository categoryRepository,
 			StockRepository stockRepository) {
 		this.productRepository = productRepository;
 		this.categoryRepository = categoryRepository;
@@ -40,23 +41,18 @@ public class ProductServiceImpl implements ProductService {
 	@Override
 	public void createProduct(CreateProductDto dto, UUID actorId) {
 
-		// ✅ Validate SKU uniqueness
 		productRepository.findBySku(dto.getSku()).ifPresent(p -> {
 			throw new RuntimeException("SKU already exists");
 		});
 
-		// ✅ Fetch category
 		Category category = categoryRepository.findById(dto.getCategoryId())
 				.orElseThrow(() -> new RuntimeException("Category not found"));
 
-		// ❌ Prevent assigning to deleted/inactive category
 		if (Boolean.TRUE.equals(category.getIsDeleted())) {
 			throw new RuntimeException("Cannot assign product to deleted category");
 		}
 
-		// ✅ Create product
 		Product product = new Product();
-
 		product.setName(dto.getName());
 		product.setSlug(generateSlug(dto.getName()));
 		product.setDescription(dto.getDescription());
@@ -69,161 +65,53 @@ public class ProductServiceImpl implements ProductService {
 		product.setUnitValue(dto.getUnitValue());
 		product.setImages(dto.getImages());
 		product.setIsActive(dto.getIsActive() != null ? dto.getIsActive() : true);
-
 		product.setCategory(category);
-
-		// ✅ Audit
 		product.setCreatedBy(actorId);
 
-		// Save product
 		Product savedProduct = productRepository.save(product);
-
-		// ✅ Create STOCK row (qty = 0)
 		createStockRow(savedProduct, actorId);
 	}
 
 	@Override
+	@Transactional(readOnly = true)
 	public ProductResponseDto getProduct(UUID productId) {
 
-		// ✅ Fetch product
 		Product product = productRepository.findById(productId)
 				.orElseThrow(() -> new RuntimeException("Product not found"));
 
-		// ✅ Fetch stock
-		Stock stock = stockRepository.findByProductId(productId).orElse(null);
+		Stock stock = stockRepository.findActiveByProductId(productId).orElse(null);
 
-		// ✅ Map response
-		ProductResponseDto dto = new ProductResponseDto();
-
-		dto.setId(product.getId());
-		dto.setName(product.getName());
-		dto.setSlug(product.getSlug());
-		dto.setDescription(product.getDescription());
-		dto.setSku(product.getSku());
-		dto.setBarcode(product.getBarcode());
-
-		dto.setMrp(product.getMrp());
-		dto.setSellingPrice(product.getSellingPrice());
-		dto.setTaxPercent(product.getTaxPercent());
-
-		dto.setUnit(product.getUnit());
-		dto.setUnitValue(product.getUnitValue());
-
-		dto.setImages(product.getImages());
-		dto.setIsActive(product.getIsActive());
-
-		if (product.getCategory() != null) {
-			dto.setCategoryId(product.getCategory().getId());
-		}
-
-		// ✅ Stock mapping
-		if (stock != null) {
-			dto.setAvailableQuantity(stock.getQuantityAvailable());
-			dto.setReservedQuantity(stock.getQuantityReserved());
-			dto.setInStock(stock.getQuantityAvailable() != null && stock.getQuantityAvailable() > 0);
-		} else {
-			dto.setAvailableQuantity(0);
-			dto.setReservedQuantity(0);
-			dto.setInStock(false);
-		}
-
-		return dto;
+		return mapToProductResponse(product, stock);
 	}
 
 	@Override
+	@Transactional(readOnly = true)
 	public ProductResponseDto getProductBySlug(String slug) {
 
-		// ✅ Fetch product by slug
 		Product product = productRepository.findBySlug(slug)
 				.orElseThrow(() -> new RuntimeException("Product not found"));
 
-		// ✅ Fetch stock
-		Stock stock = stockRepository.findByProductId(product.getId()).orElse(null);
+		Stock stock = stockRepository.findActiveByProductId(product.getId()).orElse(null);
 
-		// ✅ Map to DTO
-		ProductResponseDto dto = new ProductResponseDto();
-
-		dto.setId(product.getId());
-		dto.setName(product.getName());
-		dto.setSlug(product.getSlug());
-		dto.setDescription(product.getDescription());
-		dto.setSku(product.getSku());
-		dto.setBarcode(product.getBarcode());
-
-		dto.setMrp(product.getMrp());
-		dto.setSellingPrice(product.getSellingPrice());
-		dto.setTaxPercent(product.getTaxPercent());
-
-		dto.setUnit(product.getUnit());
-		dto.setUnitValue(product.getUnitValue());
-
-		dto.setImages(product.getImages());
-		dto.setIsActive(product.getIsActive());
-
-		if (product.getCategory() != null) {
-			dto.setCategoryId(product.getCategory().getId());
-		}
-
-		// ✅ Stock mapping
-		if (stock != null) {
-			dto.setAvailableQuantity(stock.getQuantityAvailable());
-			dto.setReservedQuantity(stock.getQuantityReserved());
-			dto.setInStock(stock.getQuantityAvailable() != null && stock.getQuantityAvailable() > 0);
-		} else {
-			dto.setAvailableQuantity(0);
-			dto.setReservedQuantity(0);
-			dto.setInStock(false);
-		}
-
-		return dto;
+		return mapToProductResponse(product, stock);
 	}
 
 	@Override
+	@Transactional(readOnly = true)
 	public Page<ProductResponseDto> listProducts(ProductFilterDto filters, Pageable pageable) {
 
-		Page<Product> products = productRepository.findProducts(filters.getCategoryId(), filters.getIsActive(),
-				filters.getMinPrice(), filters.getMaxPrice(), filters.getSearch(), pageable);
+		Page<Product> products = productRepository.findProducts(
+				filters.getCategoryId(),
+				filters.getIsActive(),
+				filters.getMinPrice(),
+				filters.getMaxPrice(),
+				filters.getSearch(),
+				pageable
+		);
 
-		// Map to DTO including stock
 		return products.map(product -> {
-
-			ProductResponseDto dto = new ProductResponseDto();
-
-			dto.setId(product.getId());
-			dto.setName(product.getName());
-			dto.setSlug(product.getSlug());
-			dto.setDescription(product.getDescription());
-			dto.setSku(product.getSku());
-			dto.setBarcode(product.getBarcode());
-
-			dto.setMrp(product.getMrp());
-			dto.setSellingPrice(product.getSellingPrice());
-			dto.setTaxPercent(product.getTaxPercent());
-
-			dto.setUnit(product.getUnit());
-			dto.setUnitValue(product.getUnitValue());
-
-			dto.setImages(product.getImages());
-			dto.setIsActive(product.getIsActive());
-
-			if (product.getCategory() != null) {
-				dto.setCategoryId(product.getCategory().getId());
-			}
-
-			// Stock
-			Stock stock = stockRepository.findByProductId(product.getId()).orElse(null);
-
-			if (stock != null) {
-				dto.setAvailableQuantity(stock.getQuantityAvailable());
-				dto.setReservedQuantity(stock.getQuantityReserved());
-				dto.setInStock(stock.getQuantityAvailable() != null && stock.getQuantityAvailable() > 0);
-			} else {
-				dto.setAvailableQuantity(0);
-				dto.setReservedQuantity(0);
-				dto.setInStock(false);
-			}
-
-			return dto;
+			Stock stock = stockRepository.findActiveByProductId(product.getId()).orElse(null);
+			return mapToProductResponse(product, stock);
 		});
 	}
 
@@ -231,30 +119,30 @@ public class ProductServiceImpl implements ProductService {
 	@Transactional
 	public void updateProduct(UUID productId, UpdateProductDto dto, UUID actorId) {
 
-		// ✅ Fetch product
 		Product product = productRepository.findById(productId)
 				.orElseThrow(() -> new RuntimeException("Product not found"));
 
-		// ✅ Update category if provided
 		if (dto.getCategoryId() != null) {
 			Category category = categoryRepository.findById(dto.getCategoryId())
 					.orElseThrow(() -> new RuntimeException("Category not found"));
+
+			if (Boolean.TRUE.equals(category.getIsDeleted())) {
+				throw new RuntimeException("Cannot assign product to deleted category");
+			}
+
 			product.setCategory(category);
 		}
 
-		// ✅ Update name + slug if name changed
 		if (dto.getName() != null) {
 			product.setName(dto.getName());
 			product.setSlug(generateSlug(dto.getName()));
 		}
 
-		// ✅ Other fields
 		if (dto.getDescription() != null) {
 			product.setDescription(dto.getDescription());
 		}
 
 		if (dto.getSku() != null) {
-			// Optional: check SKU uniqueness
 			productRepository.findBySku(dto.getSku()).ifPresent(existing -> {
 				if (!existing.getId().equals(productId)) {
 					throw new RuntimeException("SKU already exists");
@@ -295,10 +183,7 @@ public class ProductServiceImpl implements ProductService {
 			product.setIsActive(dto.getIsActive());
 		}
 
-		// ✅ Audit fields
 		product.setUpdatedBy(actorId);
-
-		// ✅ Save
 		productRepository.save(product);
 	}
 
@@ -306,18 +191,13 @@ public class ProductServiceImpl implements ProductService {
 	@Transactional
 	public void toggleProductActive(UUID productId, UUID actorId) {
 
-		// ✅ Fetch product
 		Product product = productRepository.findById(productId)
 				.orElseThrow(() -> new RuntimeException("Product not found"));
 
-		// ✅ Toggle isActive
 		Boolean currentStatus = product.getIsActive() != null ? product.getIsActive() : true;
 		product.setIsActive(!currentStatus);
-
-		// ✅ Audit
 		product.setUpdatedBy(actorId);
 
-		// ✅ Save
 		productRepository.save(product);
 	}
 
@@ -325,99 +205,126 @@ public class ProductServiceImpl implements ProductService {
 	@Transactional
 	public void softDeleteProduct(UUID productId, UUID actorId) {
 
-		// ✅ Fetch product
 		Product product = productRepository.findById(productId)
 				.orElseThrow(() -> new RuntimeException("Product not found"));
 
-		// ✅ Soft delete product
 		product.setIsDeleted(true);
 		product.setDeletedAt(LocalDateTime.now());
 		product.setDeletedBy(actorId);
+		product.setUpdatedBy(actorId);
 
 		productRepository.save(product);
 
-		// ✅ Fetch stock
-		Stock stock = stockRepository.findByProductId(productId).orElse(null);
+		Stock stock = stockRepository.findActiveByProductId(productId).orElse(null);
 
 		if (stock != null) {
 			stock.setIsDeleted(true);
 			stock.setDeletedAt(LocalDateTime.now());
 			stock.setDeletedBy(actorId);
-
+			stock.setUpdatedBy(actorId);
 			stockRepository.save(stock);
 		}
 	}
-	
+
 	@Override
-    @Transactional
-    public void restoreProduct(UUID productId, UUID actorId) {
+	@Transactional
+	public void restoreProduct(UUID productId, UUID actorId) {
 
-        // ⚠️ IMPORTANT: Because of @SQLRestriction(is_deleted = false),
-        // soft-deleted records are NOT returned by default.
-        // So we must use a custom query to fetch them.
+		Product product = productRepository.findByIdIncludingDeleted(productId)
+				.orElseThrow(() -> new RuntimeException("Product not found"));
 
-        Product product = productRepository.findByIdIncludingDeleted(productId)
-                .orElseThrow(() -> new RuntimeException("Product not found"));
+		product.setIsDeleted(false);
+		product.setDeletedAt(null);
+		product.setDeletedBy(null);
+		product.setUpdatedBy(actorId);
+		product.setUpdatedAt(LocalDateTime.now());
 
-        // ✅ Restore product
-        product.setIsDeleted(false);
-        product.setDeletedAt(null);
-        product.setDeletedBy(null);
+		productRepository.save(product);
+	}
 
-        // Optional: track who restored it
-        product.setUpdatedBy(actorId);
-        product.setUpdatedAt(LocalDateTime.now());
-
-        productRepository.save(product);
-    }
-	
 	@Override
-    @Transactional
-    public void bulkUpdatePrices(List<BulkPriceUpdateDto> items, UUID actorId) {
+	@Transactional
+	public void bulkUpdatePrices(List<BulkPriceUpdateDto> items, UUID actorId) {
 
-        for (BulkPriceUpdateDto item : items) {
+		for (BulkPriceUpdateDto item : items) {
+			Product product = productRepository.findById(item.getProductId())
+					.orElseThrow(() -> new RuntimeException("Product not found: " + item.getProductId()));
 
-            Product product = productRepository.findById(item.getProductId())
-                    .orElseThrow(() -> new RuntimeException(
-                            "Product not found: " + item.getProductId()
-                    ));
+			if (item.getMrp() != null) {
+				product.setMrp(item.getMrp().doubleValue());
+			}
 
-            // ✅ Update MRP if provided
-            if (item.getMrp() != null) {
-                product.setMrp(item.getMrp().doubleValue());
-            }
+			if (item.getSellingPrice() != null) {
+				product.setSellingPrice(item.getSellingPrice().doubleValue());
+			}
 
-            // ✅ Update Selling Price if provided
-            if (item.getSellingPrice() != null) {
-                product.setSellingPrice(item.getSellingPrice().doubleValue());
-            }
-
-            // ✅ Audit
-            product.setUpdatedBy(actorId);
-
-            productRepository.save(product);
-        }
-    }
+			product.setUpdatedBy(actorId);
+			productRepository.save(product);
+		}
+	}
 
 	// ---------------- Helper Methods ----------------
 
 	private void createStockRow(Product product, UUID actorId) {
-	    stockRepository.findByProductId(product.getId()).ifPresent(existing -> {
-	        throw new RuntimeException("Stock already exists for product: " + product.getId());
-	    });
+		stockRepository.findActiveByProductId(product.getId()).ifPresent(existing -> {
+			throw new RuntimeException("Stock already exists for product: " + product.getId());
+		});
 
-	    Stock stock = new Stock();
-	    stock.setProduct(product);
-	    stock.setQuantityAvailable(0);
-	    stock.setQuantityReserved(0);
-	    stock.setReorderLevel(5);      // optional
-	    stock.setReorderQuantity(10);  // optional
-	    stock.setUpdatedBy(actorId);
+		Stock stock = new Stock();
+		stock.setProduct(product);
+		stock.setQuantityAvailable(0);
+		stock.setQuantityReserved(0);
+		stock.setReorderLevel(5);
+		stock.setReorderQuantity(10);
+		stock.setUpdatedBy(actorId);
 
-	    stockRepository.save(stock);
+		stockRepository.save(stock);
+	}
+
+	private ProductResponseDto mapToProductResponse(Product product, Stock stock) {
+		ProductResponseDto dto = new ProductResponseDto();
+
+		dto.setId(product.getId());
+		dto.setName(product.getName());
+		dto.setSlug(product.getSlug());
+		dto.setDescription(product.getDescription());
+		dto.setSku(product.getSku());
+		dto.setBarcode(product.getBarcode());
+
+		dto.setMrp(product.getMrp());
+		dto.setSellingPrice(product.getSellingPrice());
+		dto.setTaxPercent(product.getTaxPercent());
+
+		dto.setUnit(product.getUnit());
+		dto.setUnitValue(product.getUnitValue());
+
+		dto.setImages(product.getImages());
+		dto.setIsActive(product.getIsActive());
+
+		if (product.getCategory() != null) {
+			dto.setCategoryId(product.getCategory().getId());
+		}
+
+		if (stock != null) {
+			int availableQty = stock.getQuantityAvailable() != null ? stock.getQuantityAvailable() : 0;
+			int reservedQty = stock.getQuantityReserved() != null ? stock.getQuantityReserved() : 0;
+
+			dto.setAvailableQuantity(availableQty);
+			dto.setReservedQuantity(reservedQty);
+			dto.setInStock(availableQty > 0);
+		} else {
+			dto.setAvailableQuantity(0);
+			dto.setReservedQuantity(0);
+			dto.setInStock(false);
+		}
+
+		return dto;
 	}
 
 	private String generateSlug(String name) {
-		return name.toLowerCase().trim().replaceAll("[^a-z0-9\\s]", "").replaceAll("\\s+", "-");
+		return name.toLowerCase()
+				.trim()
+				.replaceAll("[^a-z0-9\\s]", "")
+				.replaceAll("\\s+", "-");
 	}
 }

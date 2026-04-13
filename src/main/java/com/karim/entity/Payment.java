@@ -3,8 +3,10 @@ package com.karim.entity;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;
+import org.hibernate.type.SqlTypes;
 
 import com.karim.enums.PaymentMethod;
 import com.karim.enums.PaymentStatus;
@@ -39,12 +41,15 @@ public class Payment {
 	@Id
 	@GeneratedValue(strategy = GenerationType.UUID)
 	@Column(name = "id", updatable = false, nullable = false)
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID id;
 
 	@Column(name = "order_id")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID orderId;
 
 	@Column(name = "user_id")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID userId;
 
 	@Column(name = "payment_reference", unique = true)
@@ -90,9 +95,11 @@ public class Payment {
 	private LocalDateTime completedAt;
 
 	@Column(name = "created_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID createdBy;
 
 	@Column(name = "updated_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID updatedBy;
 
 	@Column(name = "created_at", updatable = false)
@@ -108,6 +115,7 @@ public class Payment {
 	private LocalDateTime deletedAt;
 
 	@Column(name = "deleted_by")
+	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID deletedBy;
 
 	@PrePersist
