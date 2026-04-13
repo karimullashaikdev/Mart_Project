@@ -80,17 +80,25 @@ public class SecurityConfig {
 	            ).permitAll()
 
 	            // Static HTML pages
+	         // Public pages
 	            .requestMatchers(
 	                "/register.html",
 	                "/login.html",
 	                "/forgot-password.html",
 	                "/activate.html",
 	                "/reset-password.html",
-	                "/products.html",
-	                "/delivery-dashboard.html",
-	                "/admin.html",
-	                "/my-orders.html"
+	                "/products.html"
 	            ).permitAll()
+
+	            // Protected HTML pages
+	            .requestMatchers("/delivery.html")
+	                .hasRole("DELIVERY")
+
+	            .requestMatchers("/admin.html")
+	                .hasRole("ADMIN")
+
+	            .requestMatchers("/my-orders.html")
+	                .authenticated()
 
 	            // Static resources
 	            .requestMatchers(
@@ -132,6 +140,7 @@ public class SecurityConfig {
 
 	    return http.build();
 	}
+	
 	@Bean
 	public DaoAuthenticationProvider authenticationProvider() {
 		DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();

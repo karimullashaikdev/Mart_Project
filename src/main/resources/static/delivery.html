@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Delivery Dashboard – Karim</title>
+  <link rel="stylesheet" href="delivery.css" />
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════
+     NAV
+════════════════════════════════════════════ -->
+<nav>
+  <div class="nav-left">
+    <div class="nav-logo">
+      <div class="logo-icon">🛵</div>Karim
+    </div>
+    <div class="agent-badge">Delivery Agent</div>
+  </div>
+  <div class="nav-right">
+    <div class="ws-indicator" id="wsIndicator">
+      <div class="ws-dot"></div>
+      <span id="wsLabel">Connecting…</span>
+    </div>
+    <div class="nav-agent-name">Welcome, <strong id="agentName">Agent</strong></div>
+    <button class="logout-btn" onclick="logout()">↩ Logout</button>
+  </div>
+</nav>
+
+<!-- ═══════════════════════════════════════════
+     MAIN CONTENT
+════════════════════════════════════════════ -->
+<div class="main">
+
+  <!-- ── 🔔 New Order Alert Banner ── -->
+  <!--
+    Shown automatically when a customer places an order.
+    Triggered in delivery.js → triggerNewOrderAlert()
+  -->
+  <div class="new-order-alert" id="newOrderAlert">
+    <div class="alert-left">
+      <div class="alert-pulse-dot"></div>
+      <div>
+        <div class="alert-text" id="newOrderAlertText">
+          <strong>New orders just arrived!</strong> Check the available orders panel.
+        </div>
+      </div>
+      <span class="alert-count-badge" id="newOrderAlertCount">1</span>
+    </div>
+    <div class="alert-actions">
+      <button class="alert-view-btn" onclick="scrollToAvailableOrders()">👀 View Orders</button>
+      <button class="alert-dismiss-btn" onclick="dismissNewOrderAlert()">Dismiss</button>
+    </div>
+  </div>
+
+  <!-- ── 5-card stats row ── -->
+  <div class="stats-row">
+    <div class="stat-card" id="statAvailableCard" style="animation-delay:.05s">
+      <div class="stat-icon orange">📦</div>
+      <div>
+        <div class="stat-val" id="statAvailable">—</div>
+        <div class="stat-label">Available to Pick</div>
+      </div>
+    </div>
+    <div class="stat-card" style="animation-delay:.1s">
+      <div class="stat-icon blue">🤝</div>
+      <div>
+        <div class="stat-val" id="statAssigned">—</div>
+        <div class="stat-label">My Assigned</div>
+      </div>
+    </div>
+    <div class="stat-card" style="animation-delay:.15s">
+      <div class="stat-icon red">🚀</div>
+      <div>
+        <div class="stat-val" id="statOnRoute">—</div>
+        <div class="stat-label">Out for Delivery</div>
+      </div>
+    </div>
+    <div class="stat-card" style="animation-delay:.2s">
+      <div class="stat-icon green">✅</div>
+      <div>
+        <div class="stat-val" id="statDelivered">—</div>
+        <div class="stat-label">Delivered Today</div>
+      </div>
+    </div>
+    <div class="stat-card" style="animation-delay:.25s">
+      <div class="stat-icon emerald">💰</div>
+      <div>
+        <div class="stat-val earnings-val" id="statTodayEarnings">₹0</div>
+        <div class="stat-label">Today's Earnings</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Earnings Banner ── -->
+  <div class="earnings-banner">
+    <div class="earnings-banner-left">
+      <div class="earnings-banner-icon">💳</div>
+      <div>
+        <div class="earnings-banner-title">Total Earnings</div>
+        <div class="earnings-banner-amount" id="bannerTotalEarnings">₹0.00</div>
+        <div class="earnings-banner-sub" id="bannerEarningSub">Loading your delivery history…</div>
+      </div>
+    </div>
+    <div class="earnings-banner-right">
+      <div class="earnings-mini">
+        <div class="earnings-mini-val" id="bannerTotalKm">0</div>
+        <div class="earnings-mini-label">Total KM</div>
+      </div>
+      <div class="earnings-divider"></div>
+      <div class="earnings-mini">
+        <div class="earnings-mini-val" id="bannerTotalOrders">0</div>
+        <div class="earnings-mini-label">Deliveries</div>
+      </div>
+      <div class="earnings-divider"></div>
+      <div class="earnings-mini">
+        <div class="earnings-mini-val green" id="bannerAvgEarning">₹0</div>
+        <div class="earnings-mini-label">Avg / Order</div>
+      </div>
+      <div class="earnings-divider"></div>
+      <div class="earnings-mini">
+        <div style="margin-bottom:6px">
+          <span class="rate-pill" id="ratePill">₹8/km + ₹20 base</span>
+        </div>
+        <div class="earnings-mini-label">Current Rate</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Main 3-column grid ── -->
+  <div class="dashboard-grid">
+
+    <!-- COL 1: Available Orders -->
+    <div id="availableSection">
+      <div class="section-header">
+        <div class="section-title">
+          📦 Available Orders
+          <span class="section-count active" id="availableCount">0</span>
+        </div>
+        <button class="refresh-btn" id="refreshAvailableBtn" onclick="refreshAvailable()">
+          <span class="ri">↻</span> Refresh
+        </button>
+      </div>
+      <div class="orders-list" id="availableList">
+        <!-- Skeleton loaders while fetching -->
+        <div class="skeleton-card">
+          <div class="skeleton" style="height:14px;width:40%;margin-bottom:12px"></div>
+          <div class="skeleton" style="height:12px;width:80%;margin-bottom:8px"></div>
+          <div class="skeleton" style="height:36px;width:100%;border-radius:9px;margin-top:8px"></div>
+        </div>
+        <div class="skeleton-card">
+          <div class="skeleton" style="height:14px;width:55%;margin-bottom:12px"></div>
+          <div class="skeleton" style="height:12px;width:70%;margin-bottom:8px"></div>
+          <div class="skeleton" style="height:36px;width:100%;border-radius:9px;margin-top:8px"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COL 2: My Orders -->
+    <div>
+      <div class="section-header">
+        <div class="section-title">
+          🛵 My Orders
+          <span class="section-count" id="myOrdersCount">0</span>
+        </div>
+        <button class="refresh-btn" id="refreshMyBtn" onclick="refreshMyOrders()">
+          <span class="ri">↻</span> Refresh
+        </button>
+      </div>
+      <div class="orders-list" id="myOrdersList">
+        <div class="skeleton-card">
+          <div class="skeleton" style="height:14px;width:45%;margin-bottom:12px"></div>
+          <div class="skeleton" style="height:12px;width:85%;margin-bottom:8px"></div>
+          <div class="skeleton" style="height:36px;width:100%;border-radius:9px;margin-top:8px"></div>
+        </div>
+      </div>
+
+      <div class="tips-card" style="margin-top:20px">
+        <div class="tips-title">💡 Quick Tips</div>
+        <div class="tips-grid">
+          <div class="tip-item"><span>⚡</span> Accept orders fast — first click wins.</div>
+          <div class="tip-item"><span>📍</span> Check the address before starting.</div>
+          <div class="tip-item"><span>✅</span> Always mark "Delivered" after handover.</div>
+          <div class="tip-item"><span>📡</span> Live updates via WebSocket — no refresh needed!</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COL 3: Earnings Panel -->
+    <div class="earnings-panel">
+      <div class="ep-header">
+        <div class="ep-title">💰 Earnings</div>
+        <div class="ep-total-label">All-time balance</div>
+        <div class="ep-total-val" id="epTotalEarnings">₹0.00</div>
+        <div class="ep-total-today" id="epTodayLine">Today: ₹0.00</div>
+      </div>
+      <div class="ep-body">
+        <div class="ep-row">
+          <span class="ep-row-label">📦 Total Deliveries</span>
+          <span class="ep-row-val" id="epTotalDeliveries">0</span>
+        </div>
+        <div class="ep-row">
+          <span class="ep-row-label">📏 Total Distance</span>
+          <span class="ep-row-val gold" id="epTotalKm">0.0 km</span>
+        </div>
+        <div class="ep-row">
+          <span class="ep-row-label">💵 Avg per Delivery</span>
+          <span class="ep-row-val green" id="epAvgPerDelivery">₹0</span>
+        </div>
+        <div class="ep-row">
+          <span class="ep-row-label">🗓️ This Week</span>
+          <span class="ep-row-val green" id="epThisWeek">₹0.00</span>
+        </div>
+        <div class="ep-row">
+          <span class="ep-row-label">📅 This Month</span>
+          <span class="ep-row-val" id="epThisMonth">₹0.00</span>
+        </div>
+
+        <!-- Recent Delivery History -->
+        <div class="ep-history">
+          <div class="ep-history-title">Recent Deliveries</div>
+          <div id="epHistoryList">
+            <div style="font-size:12px;color:var(--muted);text-align:center;padding:16px">
+              No completed deliveries yet
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- end .dashboard-grid -->
+
+</div><!-- end .main -->
+
+<!-- ═══════════════════════════════════════════
+     OTP MODAL
+════════════════════════════════════════════ -->
+<div class="modal-overlay hidden" id="otpModal">
+  <div class="modal-box">
+    <div class="modal-icon">🔐</div>
+    <div class="modal-title">Enter Delivery OTP</div>
+    <div class="modal-sub">
+      Ask the customer for the OTP sent to their phone to confirm delivery of
+      Order <strong id="otpOrderLabel">#—</strong>
+    </div>
+    <input
+      class="otp-input"
+      id="otpInput"
+      type="text"
+      inputmode="numeric"
+      pattern="[0-9]*"
+      maxlength="4"
+      autocomplete="one-time-code"
+      placeholder="····"
+      oninput="this.value=this.value.replace(/\D/g,'').slice(0,4)"
+    />
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeOtpModal()">Cancel</button>
+      <button class="btn-modal-confirm" id="otpConfirmBtn" onclick="submitOtp()">✅ Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     LIVE TRACK BAR
+════════════════════════════════════════════ -->
+<div id="liveTrackBar">
+  <div class="track-bar-left">
+    <div id="trackDot"></div>
+    <div>
+      <div class="track-status-title" id="trackStatusTitle">📡 Location sharing off</div>
+      <div class="track-status-sub"   id="trackStatusSub">Starts automatically when you begin delivery</div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     TOAST CONTAINER
+════════════════════════════════════════════ -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- ═══════════════════════════════════════════
+     AGENT HELP BOT
+════════════════════════════════════════════ -->
+<button id="agentChatFab" onclick="toggleAgentChat()" title="Need help?">🤖</button>
+<div id="agentChatWindow" class="hidden">
+  <div class="achat-header">
+    <div class="achat-title">🤖 Agent Assistant</div>
+    <button class="achat-close" onclick="toggleAgentChat()">✕</button>
+  </div>
+  <div class="achat-messages" id="agentChatMessages"></div>
+  <div class="achat-chips" id="agentChatChips">
+    <div class="achip" onclick="sendAgentChip(this)">How do I mark delivered?</div>
+    <div class="achip" onclick="sendAgentChip(this)">Customer not responding</div>
+    <div class="achip" onclick="sendAgentChip(this)">Wrong address</div>
+    <div class="achip" onclick="sendAgentChip(this)">How is my pay calculated?</div>
+    <div class="achip" onclick="sendAgentChip(this)">OTP not working</div>
+  </div>
+  <div class="achat-input-row">
+    <input class="achat-input" id="agentChatInput" type="text" placeholder="Ask anything…" maxlength="300" />
+    <button class="achat-send" id="agentChatSendBtn" onclick="sendAgentChatMessage()">➤</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SCRIPTS — loaded at end of body
+     Order matters: SockJS → STOMP → delivery.js
+════════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.6.1/sockjs.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.min.js"></script>
+<script src="delivery.js"></script>
+
+</body>
+</html>
