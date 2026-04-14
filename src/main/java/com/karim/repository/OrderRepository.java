@@ -1,6 +1,7 @@
 package com.karim.repository;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -18,6 +19,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
 	// ✅ findById
 	Optional<Order> findById(UUID id);
+
+	@Query("SELECT o FROM Order o WHERE o.status IN :statuses AND (o.isDeleted = false OR o.isDeleted IS NULL)")
+	List<Order> findByStatusIn(@Param("statuses") List<OrderStatus> statuses);
 
 	// ✅ findByNumber
 	Optional<Order> findByOrderNumber(String orderNumber);
@@ -69,4 +73,18 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 			""")
 	Page<Order> listOrdersAdmin(@Param("status") OrderStatus status, @Param("fromDate") LocalDateTime fromDate,
 			@Param("toDate") LocalDateTime toDate, Pageable pageable);
+	
+	
+	List<Order> findByStatus(OrderStatus status);
+
+	@Query("""
+		SELECT DISTINCT o
+		FROM Order o
+		LEFT JOIN FETCH o.user
+		LEFT JOIN FETCH o.address
+		LEFT JOIN FETCH o.orderItems oi
+		LEFT JOIN FETCH oi.product
+		WHERE o.status = :status
+	""")
+	List<Order> findByStatusWithDetails(@Param("status") OrderStatus status);
 }

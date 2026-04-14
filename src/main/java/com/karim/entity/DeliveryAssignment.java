@@ -13,6 +13,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -26,76 +27,83 @@ import lombok.Data;
 @SQLRestriction("is_deleted = false")
 public class DeliveryAssignment {
 
-	@Id
-	@GeneratedValue
-	private UUID id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
-	// FK: order_id
-	@Column(name = "order_id", nullable = false)
-	private UUID orderId;
+    // FK: order_id
+    @Column(name = "order_id", nullable = false, unique = true)
+    private UUID orderId;
 
-	// FK: agent_id
-	@Column(name = "agent_id", nullable = false)
-	private UUID agentId;
+    // FK: agent_id
+    @Column(name = "agent_id", nullable = false)
+    private UUID agentId;
 
-	@Enumerated(EnumType.STRING)
-	@Column(name = "status", nullable = false)
-	private DeliveryStatus status;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "status", nullable = false)
+    private DeliveryStatus status;
 
-	@Column(name = "attempt_number")
-	private int attemptNumber = 1;
+    @Column(name = "attempt_number")
+    private int attemptNumber = 1;
 
-	@Column(name = "delivery_proof_url")
-	private String deliveryProofUrl;
+    @Column(name = "delivery_proof_url")
+    private String deliveryProofUrl;
 
-	@Column(name = "failure_reason")
-	private String failureReason;
+    @Column(name = "failure_reason")
+    private String failureReason;
 
-	// FK: assigned_by
-	@Column(name = "assigned_by")
-	private UUID assignedBy;
+    // FK: assigned_by
+    @Column(name = "assigned_by")
+    private UUID assignedBy;
 
-	@Column(name = "assigned_at")
-	private LocalDateTime assignedAt;
+    @Column(name = "assigned_at")
+    private LocalDateTime assignedAt;
 
-	@Column(name = "accepted_at")
-	private LocalDateTime acceptedAt;
+    @Column(name = "accepted_at")
+    private LocalDateTime acceptedAt;
 
-	@Column(name = "rejected_at")
-	private LocalDateTime rejectedAt;
+    @Column(name = "rejected_at")
+    private LocalDateTime rejectedAt;
 
-	@Column(name = "picked_up_at")
-	private LocalDateTime pickedUpAt;
+    @Column(name = "picked_up_at")
+    private LocalDateTime pickedUpAt;
 
-	@Column(name = "delivered_at")
-	private LocalDateTime deliveredAt;
+    @Column(name = "delivered_at")
+    private LocalDateTime deliveredAt;
 
-	@Column(name = "created_at", nullable = false, updatable = false)
-	private LocalDateTime createdAt;
+    /**
+     * Timestamp when delivery was confirmed (OTP verified).
+     * NULL means delivery is still in progress.
+     */
+    @Column(name = "completed_at")
+    private LocalDateTime completedAt;
 
-	@Column(name = "updated_at")
-	private LocalDateTime updatedAt;
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
 
-	@Column(name = "is_deleted")
-	private boolean isDeleted = false;
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
 
-	@Column(name = "deleted_at")
-	private LocalDateTime deletedAt;
+    @Column(name = "is_deleted")
+    private boolean isDeleted = false;
 
-	// FK: deleted_by
-	@Column(name = "deleted_by")
-	private UUID deletedBy;
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
 
-	// Auto timestamps
-	@PrePersist
-	public void onCreate() {
-		this.createdAt = LocalDateTime.now();
-		this.assignedAt = LocalDateTime.now();
-		this.status = DeliveryStatus.ASSIGNED;
-	}
+    // FK: deleted_by
+    @Column(name = "deleted_by")
+    private UUID deletedBy;
 
-	@PreUpdate
-	public void onUpdate() {
-		this.updatedAt = LocalDateTime.now();
-	}
+    // Auto timestamps
+    @PrePersist
+    public void onCreate() {
+        this.createdAt = LocalDateTime.now();
+        this.assignedAt = LocalDateTime.now();
+        this.status = DeliveryStatus.ASSIGNED;
+    }
+
+    @PreUpdate
+    public void onUpdate() {
+        this.updatedAt = LocalDateTime.now();
+    }
 }

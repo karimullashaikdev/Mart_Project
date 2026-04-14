@@ -23,13 +23,14 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.Table;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 @Entity
 @Table(name = "order_items")
 @Data
 @SQLDelete(sql = "UPDATE order_items SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-
 public class OrderItem {
 
 	@Id
@@ -41,11 +42,15 @@ public class OrderItem {
 	// 🔗 Many Items → One Order
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "order_id", nullable = false)
+	@ToString.Exclude
+	@EqualsAndHashCode.Exclude
 	private Order order;
 
 	// 🔗 Many Items → One Product
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "product_id", nullable = false)
+	@ToString.Exclude
+	@EqualsAndHashCode.Exclude
 	private Product product;
 
 	@Column(name = "quantity", nullable = false)
@@ -83,7 +88,6 @@ public class OrderItem {
 	@JdbcTypeCode(SqlTypes.VARCHAR)
 	private UUID deletedBy;
 
-	// ✅ Lifecycle Hooks
 	@PrePersist
 	public void prePersist() {
 		this.createdAt = LocalDateTime.now();
@@ -92,7 +96,6 @@ public class OrderItem {
 			this.itemStatus = OrderItemStatus.ACTIVE;
 		}
 
-		// 🔥 Auto calculation
 		if (this.unitPrice != null && this.quantity != null) {
 			double base = this.unitPrice * this.quantity;
 			double tax = (this.taxPercent != null) ? (base * this.taxPercent / 100) : 0;

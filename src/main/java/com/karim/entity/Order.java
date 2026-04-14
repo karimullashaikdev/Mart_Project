@@ -1,6 +1,8 @@
 package com.karim.entity;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 import org.hibernate.annotations.JdbcTypeCode;
@@ -10,6 +12,7 @@ import org.hibernate.type.SqlTypes;
 
 import com.karim.enums.OrderStatus;
 
+import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -20,17 +23,19 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 @Entity
 @Table(name = "orders")
 @Data
 @SQLDelete(sql = "UPDATE orders SET is_deleted = true WHERE id = ?")
 @SQLRestriction("is_deleted = false")
-
 public class Order {
 
 	@Id
@@ -45,12 +50,22 @@ public class Order {
 	// 🔗 Many Orders → One User
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "user_id", nullable = false)
+	@ToString.Exclude
+	@EqualsAndHashCode.Exclude
 	private User user;
 
 	// 🔗 Delivery Address
 	@ManyToOne(fetch = FetchType.LAZY)
 	@JoinColumn(name = "address_id", nullable = false)
+	@ToString.Exclude
+	@EqualsAndHashCode.Exclude
 	private Address address;
+
+	// 🔗 One Order → Many OrderItems
+	@OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+	@ToString.Exclude
+	@EqualsAndHashCode.Exclude
+	private List<OrderItem> orderItems = new ArrayList<>();
 
 	@Enumerated(EnumType.STRING)
 	@Column(name = "status", nullable = false)

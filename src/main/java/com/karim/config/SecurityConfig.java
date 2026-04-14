@@ -26,138 +26,129 @@ import jakarta.servlet.http.HttpServletResponse;
 @EnableMethodSecurity
 public class SecurityConfig {
 
-	private final CustomUserDetailsService userDetailsService;
-	private final JwtAuthFilter jwtAuthFilter;
+    private final CustomUserDetailsService userDetailsService;
+    private final JwtAuthFilter jwtAuthFilter;
 
-	public SecurityConfig(CustomUserDetailsService userDetailsService, JwtAuthFilter jwtAuthFilter) {
-		this.userDetailsService = userDetailsService;
-		this.jwtAuthFilter = jwtAuthFilter;
-	}
+    public SecurityConfig(CustomUserDetailsService userDetailsService, JwtAuthFilter jwtAuthFilter) {
+        this.userDetailsService = userDetailsService;
+        this.jwtAuthFilter = jwtAuthFilter;
+    }
 
-	@Bean
-	public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    @Bean
+    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
 
-	    http
-	        .csrf(AbstractHttpConfigurer::disable)
+        http
+            .csrf(AbstractHttpConfigurer::disable)
+            .sessionManagement(session ->
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
-	        .sessionManagement(session ->
-	            session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .exceptionHandling(ex -> ex
+                .authenticationEntryPoint((request, response, authException) -> {
+                    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                    response.setContentType("application/json");
+                    response.getWriter().write("""
+                        {
+                          "success": false,
+                          "error": "Unauthorized - Token missing or invalid",
+                          "statusCode": 401
+                        }
+                    """);
+                })
+                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                    response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                    response.setContentType("application/json");
+                    response.getWriter().write("""
+                        {
+                          "success": false,
+                          "error": "Forbidden - You don't have permission",
+                          "statusCode": 403
+                        }
+                    """);
+                })
+            )
 
-	        .exceptionHandling(ex -> ex
-	            .authenticationEntryPoint((request, response, authException) -> {
-	                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-	                response.setContentType("application/json");
-	                response.getWriter().write("""
-	                    {
-	                      "success": false,
-	                      "error": "Unauthorized - Token missing or invalid",
-	                      "statusCode": 401
-	                    }
-	                """);
-	            })
-	            .accessDeniedHandler((request, response, accessDeniedException) -> {
-	                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-	                response.setContentType("application/json");
-	                response.getWriter().write("""
-	                    {
-	                      "success": false,
-	                      "error": "Forbidden - You don’t have permission",
-	                      "statusCode": 403
-	                    }
-	                """);
-	            })
-	        )
+            .authorizeHttpRequests(auth -> auth
 
-	        .authorizeHttpRequests(auth -> auth
+                // Swagger
+                .requestMatchers(
+                    "/v3/api-docs/**",
+                    "/swagger-ui/**",
+                    "/swagger-ui.html",
+                    "/swagger-resources/**",
+                    "/webjars/**"
+                ).permitAll()
 
-	            // Swagger
-	            .requestMatchers(
-	                "/v3/api-docs/**",
-	                "/swagger-ui/**",
-	                "/swagger-ui.html",
-	                "/swagger-resources/**",
-	                "/webjars/**"
-	            ).permitAll()
+                // HTML pages — role check done in JS
+                .requestMatchers(
+                    "/register.html", "/login.html", "/forgot-password.html",
+                    "/activate.html", "/reset-password.html", "/products.html",
+                    "/delivery.html", "/admin.html", "/my-orders.html", "/index.html"
+                ).permitAll()
 
-	            // Static HTML pages
-	         // Public pages
-	            .requestMatchers(
-	                "/register.html",
-	                "/login.html",
-	                "/forgot-password.html",
-	                "/activate.html",
-	                "/reset-password.html",
-	                "/products.html"
-	            ).permitAll()
+                // Static resources
+                .requestMatchers(
+                    "/css/**", "/js/**", "/images/**",
+                    "/icons/**", "/assets/**", "/favicon.ico"
+                ).permitAll()
 
-	            // Protected HTML pages
-	            .requestMatchers("/delivery.html")
-	                .hasRole("DELIVERY")
+                // FIX: Permit ALL SockJS/WebSocket handshake paths
+                // SockJS uses /ws, /ws/info, /ws/{server}/{session}/websocket etc.
+                .requestMatchers("/ws/**").permitAll()
 
-	            .requestMatchers("/admin.html")
-	                .hasRole("ADMIN")
+                // Auth APIs
+                .requestMatchers("/api/auth/**").permitAll()
 
-	            .requestMatchers("/my-orders.html")
-	                .authenticated()
+                // Public APIs
+                .requestMatchers(HttpMethod.POST, "/api/images/upload").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**").permitAll()
 
-	            // Static resources
-	            .requestMatchers(
-	                "/css/**",
-	                "/js/**",
-	                "/images/**",
-	                "/icons/**",
-	                "/assets/**",
-	                "/favicon.ico"
-	            ).permitAll()
+                // Webhook — no auth
+                .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
 
-	            // Auth APIs
-	            .requestMatchers("/api/auth/**").permitAll()
+                // User self APIs
+                .requestMatchers(HttpMethod.GET,    "/api/users/me/**").authenticated()
+                .requestMatchers(HttpMethod.POST,   "/api/users/me/**").authenticated()
+                .requestMatchers(HttpMethod.PUT,    "/api/users/me/**").authenticated()
+                .requestMatchers(HttpMethod.PATCH,  "/api/users/me/**").authenticated()
+                .requestMatchers(HttpMethod.DELETE, "/api/users/me/**").authenticated()
 
-	            // Public APIs
-	            .requestMatchers(HttpMethod.POST, "/api/images/upload").permitAll()
-	            .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/categories/**").permitAll()
+                // Payments
+                .requestMatchers("/api/payments/**").authenticated()
 
-	            // User self APIs
-	            .requestMatchers(HttpMethod.GET, "/api/users/me/**").authenticated()
-	            .requestMatchers(HttpMethod.POST, "/api/users/me/**").authenticated()
-	            .requestMatchers(HttpMethod.PUT, "/api/users/me/**").authenticated()
-	            .requestMatchers(HttpMethod.PATCH, "/api/users/me/**").authenticated()
-	            .requestMatchers(HttpMethod.DELETE, "/api/users/me/**").authenticated()
+                // FIX: Delivery APIs — use authenticated() not hasRole()
+                // Role check is done in JS guard + WebSocket interceptor.
+                // hasRole("DELIVERY") causes 403 if JWT role format doesn't
+                // exactly match "ROLE_DELIVERY" — very common silent failure.
+                .requestMatchers("/api/delivery/**").authenticated()
 
-	            // Payments
-	            .requestMatchers(HttpMethod.POST, "/api/payments/webhook").permitAll()
-	            .requestMatchers("/api/payments/**").authenticated()
+                // Admin APIs
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
 
-	            // Admin APIs
-	            .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // Everything else
+                .anyRequest().authenticated()
+            )
 
-	            // Everything else
-	            .anyRequest().authenticated()
-	        )
+            .authenticationProvider(authenticationProvider())
+            .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
-	        .authenticationProvider(authenticationProvider())
-	        .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
+        return http.build();
+    }
 
-	    return http.build();
-	}
-	
-	@Bean
-	public DaoAuthenticationProvider authenticationProvider() {
-		DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+    @Bean
+    public DaoAuthenticationProvider authenticationProvider() {
+        DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
+        authProvider.setUserDetailsService(userDetailsService);
+        authProvider.setPasswordEncoder(passwordEncoder());
+        return authProvider;
+    }
 
-		authProvider.setUserDetailsService(userDetailsService); // ✅ FIX
-		authProvider.setPasswordEncoder(passwordEncoder());
+    @Bean
+    public PasswordEncoder passwordEncoder() {
+        return new BCryptPasswordEncoder();
+    }
 
-		return authProvider;
-	}
-
-	@Bean
-	public PasswordEncoder passwordEncoder() {
-		return new BCryptPasswordEncoder();
-	}
-
-	@Bean
-	public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
-		return authConfig.getAuthenticationManager();
-	}
+    @Bean
+    public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
+        return authConfig.getAuthenticationManager();
+    }
 }

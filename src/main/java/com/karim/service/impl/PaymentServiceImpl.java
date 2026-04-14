@@ -50,11 +50,13 @@ public class PaymentServiceImpl implements PaymentService {
 	private final RazorpayClient razorpayClient;
 	private final RazorpayConfig razorpayConfig;
 	private final RazorpayWebhookLogRepository razorpayWebhookLogRepository;
+	private final OrderNotificationService orderNotificationService;
 
 	public PaymentServiceImpl(OrderRepository orderRepository, PaymentRepository paymentRepository,
 			OtpRepository otpRepository, RefundRepository refundRepository, InvoiceRepository invoiceRepository,
 			RazorpayClient razorpayClient, RazorpayConfig razorpayConfig,
-			RazorpayWebhookLogRepository razorpayWebhookLogRepository) {
+			RazorpayWebhookLogRepository razorpayWebhookLogRepository,
+			OrderNotificationService orderNotificationService) {
 		this.orderRepository = orderRepository;
 		this.otpRepository = otpRepository;
 		this.paymentRepository = paymentRepository;
@@ -63,6 +65,7 @@ public class PaymentServiceImpl implements PaymentService {
 		this.razorpayClient = razorpayClient;
 		this.razorpayConfig = razorpayConfig;
 		this.razorpayWebhookLogRepository = razorpayWebhookLogRepository;
+		this.orderNotificationService = orderNotificationService;
 	}
 
 	@Transactional
@@ -312,26 +315,21 @@ public class PaymentServiceImpl implements PaymentService {
 				order.setConfirmedAt(LocalDateTime.now());
 				order.setUpdatedBy(actorId);
 				orderRepository.save(order);
+				orderNotificationService.notifyNewOrder(order);
 			}
 
-			return PaymentResponse.builder()
-					.paymentId(updated.getId())
-					.paymentReference(updated.getPaymentReference())
-					.status(updated.getStatus().name())
-					.message("Razorpay payment verified successfully")
-					.amount(updated.getAmount())
-					.method(updated.getMethod().name())
-					.gatewayName(updated.getGatewayName())
-					.gatewayOrderId(updated.getGatewayOrderId())
-					.gatewayPaymentId(updated.getGatewayPaymentId())
-					.gatewaySignature(updated.getGatewaySignature())
-					.gatewayTxnId(updated.getGatewayTxnId())
-					.build();
+			return PaymentResponse.builder().paymentId(updated.getId()).paymentReference(updated.getPaymentReference())
+					.status(updated.getStatus().name()).message("Razorpay payment verified successfully")
+					.amount(updated.getAmount()).method(updated.getMethod().name())
+					.gatewayName(updated.getGatewayName()).gatewayOrderId(updated.getGatewayOrderId())
+					.gatewayPaymentId(updated.getGatewayPaymentId()).gatewaySignature(updated.getGatewaySignature())
+					.gatewayTxnId(updated.getGatewayTxnId()).build();
 
 		} catch (Exception e) {
 			throw new RuntimeException("Payment verification failed: " + e.getMessage(), e);
 		}
 	}
+
 	@Transactional
 	@Override
 	public void confirmPaymentSuccess(UUID paymentId, String gatewayTxnId, String response, UUID actorId) {
@@ -352,8 +350,18 @@ public class PaymentServiceImpl implements PaymentService {
 		payment.setGatewayResponse(response);
 		payment.setCompletedAt(LocalDateTime.now());
 		payment.setUpdatedBy(actorId);
-
 		paymentRepository.save(payment);
+
+		// ✅ ADD BELOW — confirm order and notify delivery for OTP-based payments
+		orderRepository.findById(payment.getOrderId()).ifPresent(order -> {
+			if (order.getStatus() == com.karim.enums.OrderStatus.PENDING) {
+				order.setStatus(com.karim.enums.OrderStatus.CONFIRMED);
+				order.setConfirmedAt(LocalDateTime.now());
+				order.setUpdatedBy(actorId);
+				orderRepository.save(order);
+				orderNotificationService.notifyNewOrder(order); // ✅ NOTIFY HERE
+			}
+		});
 	}
 
 	@Transactional
@@ -714,9 +722,22 @@ public class PaymentServiceImpl implements PaymentService {
 		switch (eventType) {
 		case "payment.captured":
 		case "order.paid":
-			payment.setStatus(PaymentStatus.SUCCESS);
-			if (payment.getCompletedAt() == null) {
-				payment.setCompletedAt(LocalDateTime.now());
+			if (payment.getStatus() != PaymentStatus.SUCCESS) { // avoid duplicate processing
+				payment.setStatus(PaymentStatus.SUCCESS);
+				if (payment.getCompletedAt() == null) {
+					payment.setCompletedAt(LocalDateTime.now());
+				}
+				paymentRepository.save(payment); // ✅ save payment first
+
+				// ✅ Then confirm order + notify delivery
+				orderRepository.findById(payment.getOrderId()).ifPresent(order -> {
+					if (order.getStatus() == com.karim.enums.OrderStatus.PENDING) {
+						order.setStatus(com.karim.enums.OrderStatus.CONFIRMED);
+						order.setConfirmedAt(LocalDateTime.now());
+						orderRepository.save(order);
+						orderNotificationService.notifyNewOrder(order); // ✅ NOTIFY HERE
+					}
+				});
 			}
 			break;
 
@@ -736,7 +757,8 @@ public class PaymentServiceImpl implements PaymentService {
 			break;
 		}
 
-		paymentRepository.save(payment);
+		paymentRepository.save(payment); // still save for non-captured events
+
 	}
 
 	@Override

@@ -4,7 +4,84 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Delivery Dashboard – Karim</title>
-  <link rel="stylesheet" href="delivery.css" />
+  <link rel="stylesheet" href="/css/delivery.css" />
+  <script src="/js/delivery.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+
+  <script>
+    // ─── ROLE GUARD ───────────────────────────────────────────────────────────
+    (function guardPage() {
+        const token = localStorage.getItem('token')
+                   || localStorage.getItem('authToken')
+                   || localStorage.getItem('accessToken');
+        if (!token) { window.location.href = '/login.html'; return; }
+        try {
+            const payload = JSON.parse(atob(token.split('.')[1]));
+            const roles = payload.roles || payload.authorities || payload.role || [];
+            const roleStr = Array.isArray(roles)
+                ? roles.map(r => r?.authority || r).join(',')
+                : String(roles);
+            if (!roleStr.toUpperCase().includes('DELIVERY')) {
+                window.location.href = '/login.html';
+            }
+        } catch (e) { window.location.href = '/login.html'; }
+    })();
+
+    // ─── WEBSOCKET ────────────────────────────────────────────────────────────
+    document.addEventListener('DOMContentLoaded', function () {
+        const token = localStorage.getItem('token')
+                   || localStorage.getItem('authToken')
+                   || localStorage.getItem('accessToken');
+
+        const socket = new SockJS('/ws');
+        const stompClient = Stomp.over(socket);
+        stompClient.debug = null;
+
+        stompClient.connect(
+            { Authorization: 'Bearer ' + token },
+            function onConnected() {
+                console.log('✅ WebSocket connected');
+                // FIX: subscribe to /topic/delivery-orders (matches OrderNotificationService publish topic)
+                stompClient.subscribe('/topic/delivery-orders', function (message) {
+                    const order = JSON.parse(message.body);
+                    appendOrderToPage(order);
+                });
+            },
+            function onError(error) {
+                console.error('WebSocket connection error:', error);
+                setTimeout(() => location.reload(), 5000);
+            }
+        );
+
+        function appendOrderToPage(order) {
+            const container = document.getElementById('orders-container');
+            if (!container) return;
+
+            // FIX: Use orderId (OrderNotificationDto field), not order.id
+            // Also use deliveryAddress + items[].productName from OrderNotificationDto
+            const card = document.createElement('div');
+            card.className = 'order-card new-order';
+            card.setAttribute('data-order-id', order.orderId);
+            card.innerHTML = `
+                <div class="order-header">
+                    <span class="order-id">#${order.orderId}</span>
+                    <span class="order-status badge">NEW</span>
+                </div>
+                <div class="order-body">
+                    <p><strong>Customer:</strong> ${order.customerName || 'N/A'}</p>
+                    <p><strong>Address:</strong> ${order.deliveryAddress || 'N/A'}${order.deliveryCity ? ', ' + order.deliveryCity : ''}</p>
+                    <p><strong>Items:</strong> ${(order.items || []).map(i => i.productName).join(', ') || 'N/A'}</p>
+                    <p><strong>Total:</strong> ₹${order.totalAmount}</p>
+                </div>
+                <div class="order-actions">
+                    <button onclick="acceptOrder('${order.orderId}', this)">Accept</button>
+                </div>
+            `;
+            container.prepend(card);
+        }
+    });
+  </script>
 </head>
 <body>
 
